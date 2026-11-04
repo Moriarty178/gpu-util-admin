@@ -1,0 +1,67 @@
+[project]
+name = "gpu-util-admin-backend"
+version = "0.1.0"
+description = "Backend công cụ quản trị tải GPU TTCN-VTT (FastAPI + gpu_core)"
+requires-python = ">=3.12"
+dependencies = [
+  # lõi gpu_core (đã test: pandas 3.0.5 & 3.1.0, openpyxl 3.1.5, Python 3.12.10 & 3.13)
+  "pandas>=2.2",
+  "openpyxl>=3.1",
+  "defusedxml>=0.7",
+  # web/DB — phiên bản khóa trong uv.lock. GĐ1 dùng SQLite (có sẵn trong Python)
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "pydantic>=2",
+  "pydantic-settings>=2.4",
+  "python-multipart>=0.0.9",
+  # GĐ2: tài khoản (G2-M2) — băm mật khẩu bcrypt, phiên JWT trong cookie httpOnly
+  "bcrypt>=4.1",
+  "pyjwt>=2.8",
+  "python-pptx>=1.0",
+]
+
+[project.optional-dependencies]
+pg = ["psycopg[binary]>=3.1"]   # GĐ2: PostgreSQL
+
+[dependency-groups]
+dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy", "psycopg[binary]>=3.1"]  # psycopg: chạy test trên PostgreSQL
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["slow: test hiệu năng / dữ liệu lớn"]
+filterwarnings = ["ignore::UserWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "gpu_core"]
+known-third-party = ["alembic"]   # thư mục backend/alembic/ (migration) không phải package của dự án
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["app"]
+
+[[tool.mypy.overrides]]
+# gpu_core là lõi dùng chung với skill, chưa gõ kiểu đầy đủ — mypy chỉ kiểm app/
+module = ["gpu_core", "gpu_core.*"]
+ignore_errors = true
+implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*", "openpyxl", "openpyxl.*", "lxml", "lxml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# python-pptx chỉ gõ kiểu một phần (CategoryChartData, RGBColor.from_string chưa có chú thích) — chỉ nới cho tầng dựng slide
+module = ["app.reports.*"]
+disallow_untyped_calls = false
+warn_return_any = false

@@ -1,0 +1,23 @@
+# HTTPS cho server thật: nginx (service web) giữ chứng chỉ .pem, cổng 443; cổng HTTP chỉ còn chuyển hướng sang HTTPS;
+# api tự đặt COOKIE_SECURE=true (cookie phiên chỉ đi qua TLS). Hướng dẫn: DEPLOY.md §8.
+#
+# Bật (Linux/VM) — thêm vào .env, rồi mọi lệnh `docker compose …` tự dùng cả 2 file:
+#   COMPOSE_FILE=compose.yaml:compose.tls.yaml        (Windows/Docker Desktop: dùng ';' thay ':')
+#   TLS_CERT_FILE=/etc/gpu-util/tls/fullchain.pem      chứng chỉ + chuỗi trung gian
+#   TLS_KEY_FILE=/etc/gpu-util/tls/privkey.pem         khóa riêng, không passphrase
+#   HTTPS_BIND=0.0.0.0   HTTPS_PORT=443                (mặc định 127.0.0.1 — mở mạng là chủ động)
+# Kiểm file chứng chỉ trước: bash scripts/task.sh tls-check <cert.pem> <key.pem> [tên-miền]
+services:
+  web:
+    ports:
+      - "${HTTPS_BIND:-127.0.0.1}:${HTTPS_PORT:-443}:443"
+    environment:
+      GPU_TLS: "1"
+      PUBLIC_HTTPS_PORT: ${HTTPS_PORT:-443}   # để cổng 80 chuyển hướng đúng https://<host>[:cổng]
+    volumes:
+      - ${TLS_CERT_FILE:?Đặt TLS_CERT_FILE (đường dẫn file chứng chỉ .pem) trong .env}:/etc/nginx/tls/cert.pem:ro
+      - ${TLS_KEY_FILE:?Đặt TLS_KEY_FILE (đường dẫn file khóa riêng .pem) trong .env}:/etc/nginx/tls/key.pem:ro
+
+  api:
+    environment:
+      COOKIE_SECURE: "true"

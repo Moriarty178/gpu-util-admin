@@ -1,0 +1,45 @@
+# Phát triển trên localhost bằng Docker (thay cho `task.sh dev` native):
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+#   → Web (Vite, tự tải lại) http://localhost:${WEB_PORT:-5173} · API http://127.0.0.1:${API_PORT:-8000} · PG 127.0.0.1:${PG_PORT:-15432}
+# Mọi cổng chỉ bind 127.0.0.1. Code bind-mount từ repo; thư viện nằm trong image/volume (không dùng .venv, node_modules
+# của Windows). Docker Desktop trên Windows không chuyển sự kiện đổi file vào container → bật chế độ polling.
+services:
+  db:
+    ports:
+      - "127.0.0.1:${PG_PORT:-15432}:5432"   # 15432: tránh PostgreSQL cài sẵn trên máy (5432/5433). Test: TEST_PG_URL=postgresql+psycopg://gpu:<mật khẩu>@127.0.0.1:15432/postgres
+
+  api:
+    image: gpu-util-admin-api:dev
+    build:
+      args:
+        WITH_DEV: "1"   # thêm pytest, ruff… → chạy test trong container được
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    command: ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000",
+              "--reload", "--reload-dir", "app", "--reload-dir", "gpu_core"]
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - ./backend/app:/srv/backend/app
+      - ./backend/gpu_core:/srv/backend/gpu_core
+      - ./backend/alembic:/srv/backend/alembic
+      - ./backend/seeds:/srv/backend/seeds
+      - ./backend/tests:/srv/backend/tests
+
+  web:
+    build: !reset null
+    image: node:22-alpine
+    working_dir: /srv/frontend
+    environment:
+      VITE_HOST: 0.0.0.0                 # trong container; cổng publish vẫn chỉ 127.0.0.1
+      API_PROXY_TARGET: http://api:8000
+      CHOKIDAR_USEPOLLING: "true"
+    command: ["sh", "-c", "npm ci --no-fund --no-audit && npx vite --port 5173 --strictPort"]
+    ports: !override
+      - "127.0.0.1:${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/srv/frontend
+      - frontend_node_modules:/srv/frontend/node_modules
+
+volumes:
+  frontend_node_modules:

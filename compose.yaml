@@ -1,0 +1,108 @@
+# GĐ2 — Docker Compose (PLAN §2.2). Localhost và VM dùng CÙNG file này, chỉ khác `.env`.
+#   docker compose up -d --build          → http://localhost:${HTTP_PORT:-8080}
+#   docker compose run --rm replay        → chuyển dữ liệu GĐ1 (SQLite + uploads) sang PostgreSQL (ADR-9)
+#   docker compose run --rm backup now    → sao lưu ngay (pg_dump + file gốc) vào ./backups
+#   docker compose exec api python -m app.tools.users create-admin   → tạo admin đầu tiên (in mật khẩu tạm 1 lần)
+# Chỉ service `web` mở cổng, mặc định bind 127.0.0.1. Mở ra mạng chỉ khi có HTTPS: chứng chỉ .pem gắn vào nginx qua
+# compose.tls.yaml (COMPOSE_FILE=compose.yaml:compose.tls.yaml trong .env), hoặc proxy TLS của hạ tầng phía trước +
+# COOKIE_SECURE=true — xem DEPLOY.md §8.
+name: gpu-util-admin
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gpu}:${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}@db:5432/${POSTGRES_DB:-gpu_util}
+  UPLOAD_DIR: /data/uploads
+  SECRET_KEY: ${SECRET_KEY:?Đặt SECRET_KEY (≥ 32 ký tự ngẫu nhiên) trong .env}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}   # true khi web đứng sau HTTPS
+  TZ: ${TZ:-Asia/Ho_Chi_Minh}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gpu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:-gpu_util}
+      POSTGRES_INITDB_ARGS: --encoding=UTF8
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: gpu-util-admin-api:local
+    restart: unless-stopped
+    environment: *api-env
+    volumes:
+      - uploads:/data/uploads   # file gốc mọi lô (<sha256>.xlsx) — nguồn để xuất Excel & phát lại
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: gpu-util-admin-web:local
+    restart: unless-stopped
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:80"
+    environment:
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}   # IP/dải của proxy hạ tầng phía trước (nếu có) → lấy đúng IP người dùng
+    depends_on:
+      api:
+        condition: service_healthy
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "/backup.sh"]
+    command: ["loop"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-gpu}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      PGDATABASE: ${POSTGRES_DB:-gpu_util}
+      BACKUP_AT: ${BACKUP_AT:-02:00}
+      BACKUP_KEEP: ${BACKUP_KEEP:-30}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - ./docker/backup.sh:/backup.sh:ro
+      - uploads:/data/uploads:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Công cụ 1 lần (không chạy khi `up`): phát lại các lô GĐ1 vào PostgreSQL. GD1_DATA = thư mục chứa app.db + uploads/
+  # (vd giải nén file backups/gpu-util-data-*.zip của GĐ1). Đích = DATABASE_URL ở trên, file gốc chép vào volume uploads.
+  replay:
+    image: gpu-util-admin-api:local
+    profiles: ["tools"]
+    user: "0:0"   # ghi được file -wal/-shm cạnh app.db trong thư mục bind-mount của host
+    environment: *api-env
+    volumes:
+      - uploads:/data/uploads
+      - ${GD1_DATA:-./data}:/gd1
+    command: ["python", "-m", "app.tools.replay", "--source", "sqlite:////gd1/app.db", "--source-uploads", "/gd1/uploads"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
