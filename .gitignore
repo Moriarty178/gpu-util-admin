@@ -1,6 +1,6 @@
 # Dữ liệu nội bộ — KHÔNG commit
 samples/
-data/
+#data/
 uploads/
 backups/
 *.dump
