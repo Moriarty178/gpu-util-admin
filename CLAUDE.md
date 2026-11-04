@@ -28,7 +28,8 @@ xem biểu đồ tải toàn bộ / từng server theo khoảng ngày, bảng c�
 2. `CONTEXT.md` — nghiệp vụ, định dạng file VTNet (schema `t10` hiện hành, `t7` cũ), phát hiện đã kiểm chứng, **số golden**.
 3. `backend/gpu_core/` — lõi đã có & đã test. Đọc code trước khi viết service.
 4. `DEPLOY.md` — sổ tay deploy lên server (môi trường, image, `.env`, chuyển dữ liệu, kiểm tra, trạng thái đã/chưa kiểm).
-   `AGENTS.md` = bản tóm tắt cho công cụ AI khác (Codex…), trỏ về file này.
+   `AGENTS.md` = bản tóm tắt cho công cụ AI khác (Codex, ZCode…), trỏ về file này; `docs/AI_ONBOARDING.md` = nhập môn cho
+   agent mới (tiến độ, thứ tự đọc, bản đồ code, prompt khởi động) — cập nhật §2 khi tiến độ / mốc test đổi.
 Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câu trả lời gọn, có số liệu, có căn cứ.
 
 ## Môi trường của người dùng

@@ -4,6 +4,9 @@ Web quản trị theo dõi tải GPU dài hạn cho TTCN-VTT (FastAPI + React; S
 Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câu trả lời gọn, có số liệu, có căn cứ.
 
 ## Đọc trước
+**Lần đầu mở dự án**: đọc [docs/AI_ONBOARDING.md](docs/AI_ONBOARDING.md) — bối cảnh, tiến độ, thứ tự đọc, bản đồ code,
+quy trình, prompt khởi động (mục 9).
+
 | Cần | File |
 |---|---|
 | Quy tắc làm việc, bất biến nghiệp vụ, lệnh, quy ước code (**bộ quy tắc đầy đủ — áp dụng cho mọi công cụ, không riêng Claude**) | [CLAUDE.md](CLAUDE.md) |
@@ -29,6 +32,7 @@ Mỗi việc làm xong mà có thông tin quan trọng → **tự cập nhật �
 | Phát hiện về dữ liệu / file VTNet, số golden mới đã kiểm chứng | `CONTEXT.md` (§7 cho golden) |
 | Milestone, checkbox, quyết định của người dùng, việc còn lại, ý tưởng | `PLAN.md` (§10 milestone, §14 roadmap) |
 | Trạng thái dự án, lệnh mới, quy ước / bất biến mới | `CLAUDE.md` (mục "Đang ở đâu", "Stack & lệnh") |
+| Ảnh chụp tiến độ, mốc số test, file mới cần đọc, lệnh mới | `docs/AI_ONBOARDING.md` (§2, §3, §4, §7) |
 | Cách chạy cho người dùng | `README.md` |
 | Rủi ro / biện pháp bảo mật | `docs/SECURITY_REVIEW.md` |
 

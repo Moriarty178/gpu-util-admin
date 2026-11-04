@@ -1,5 +1,7 @@
 # Prompt mẫu cho Claude Code
 
+> **Lịch sử (GĐ1, thời dùng WSL).** Không dùng cho phiên mới — prompt hiện hành: `docs/AI_ONBOARDING.md` §9.
+
 Mở VS Code **kết nối WSL** tại `~/projects/gpu-util-admin` (xem `docs/SETUP_WINDOWS_WSL.md` mục 3), mở khung Claude Code rồi dán lần lượt.
 Mỗi milestone nên là **1 cuộc hội thoại mới** để ngữ cảnh gọn; CLAUDE.md, PLAN.md, CONTEXT.md giữ mạch xuyên phiên.
 

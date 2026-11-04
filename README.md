@@ -16,11 +16,12 @@ file thống kê server vào CSDL riêng, xem biểu đồ tải toàn bộ / t�
 | Đường dẫn | Nội dung |
 |---|---|
 | `DEPLOY.md` | **Sổ tay deploy lên server**: kiến trúc, chuẩn bị VM, `.env`, build/đóng gói image, chuyển dữ liệu, kiểm tra, trạng thái |
-| `AGENTS.md` | Hướng dẫn cho công cụ AI khác (Codex…): đọc gì trước, điều cấm, ghi chú vào đâu |
+| `AGENTS.md` | Hướng dẫn cho công cụ AI khác (Codex, ZCode…): đọc gì trước, điều cấm, ghi chú vào đâu |
+| `docs/AI_ONBOARDING.md` | Nhập môn cho AI agent mới: bối cảnh, tiến độ, thứ tự đọc, bản đồ code, quy trình, **prompt khởi động** |
 | `CLAUDE.md` | Quy ước làm việc cho Claude Code (tự nạp mỗi phiên) — cũng là bộ quy tắc đầy đủ cho mọi công cụ AI |
 | `PLAN.md` | Kế hoạch 2 giai đoạn: kiến trúc, CSDL, luồng nhập, phép tính, API, giao diện, milestone + nghiệm thu |
 | `CONTEXT.md` | Bối cảnh nghiệp vụ, định dạng file VTNet/thống kê, phát hiện dữ liệu, số golden |
-| `docs/KICKOFF_PROMPTS.md` | Prompt mẫu cho từng milestone |
+| `docs/KICKOFF_PROMPTS.md` | Prompt mẫu GĐ1 (lịch sử — prompt hiện hành ở `docs/AI_ONBOARDING.md` §9) |
 | `docs/SETUP_WINDOWS_WSL.md` | Phương án WSL cũ (tham khảo cho GĐ2 / máy Linux) |
 | `docs/SECURITY_REVIEW.md` | Rà soát bảo mật G2-M4: đã kiểm gì, đã sửa gì, khuyến nghị còn lại |
 | `docs/DEPLOY_VM.md` | GĐ2: Docker Compose trên localhost → VM, chuyển dữ liệu GĐ1, sao lưu/khôi phục, nâng cấp |
