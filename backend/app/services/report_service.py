@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.errors import ServiceError
-from app.repo import batch_repo
+from app.repo import util_repo
 from app.scope import Scope
 from app.services import compare_service
 from app.services.analytics_service import (
@@ -46,10 +46,38 @@ def month_label(month: str) -> str:
     return f"tháng {int(month[5:7])}/{month[:4]}"
 
 
-def available_months(s: Session) -> list[str]:
-    """Tháng có lô VTNet đã xác nhận (nhãn kỳ = tháng chiếm nhiều ngày nhất của file), mới nhất trước."""
-    labels = {b.period_label for b in batch_repo.committed_batches(s, "vtnet_util") if b.period_label}
-    return sorted((m for m in labels if _MONTH.match(m)), reverse=True)
+def available_months(days: list[date]) -> list[str]:
+    """Tháng có ít nhất 1 ngày dữ liệu (file tuần / tháng đều được — PLAN §14.8), mới nhất trước."""
+    return sorted({f"{d:%Y-%m}" for d in days}, reverse=True)
+
+
+def completeness(month: str, days: list[date]) -> dict[str, Any]:
+    """Đủ tháng = dữ liệu đã tới (hoặc qua) ngày cuối tháng — người dùng chốt 04/11/2026: tháng chưa đủ → chặn xuất
+    báo cáo. Tháng đã qua nhưng thiếu vài ngày lẻ (vd file T7 dừng ở 30/07) vẫn xuất được, kèm danh sách ngày thiếu."""
+    start, end = month_bounds(month)
+    have = set(days)
+    in_month = sorted(d for d in have if start <= d <= end)
+    last_any = max(days) if days else None
+    upto = min(end, last_any) if last_any else start - timedelta(days=1)
+    missing = [(start + timedelta(days=i)).isoformat() for i in range((upto - start).days + 1)
+               if start + timedelta(days=i) not in have]  # fmt: skip
+    return {
+        "days_in_month": (end - start).days + 1,
+        "days_with_data": len(in_month),
+        "first": in_month[0].isoformat() if in_month else None,
+        "last": in_month[-1].isoformat() if in_month else None,
+        "complete": bool(last_any and last_any >= end),
+        "missing_days": missing,
+    }
+
+
+def incomplete_message(month: str, c: dict[str, Any]) -> str:
+    end = month_bounds(month)[1]
+    upto = f"mới có dữ liệu tới {date.fromisoformat(c['last']):%d/%m/%Y}" if c["last"] else "chưa có dữ liệu"
+    return (
+        f"{month_label(month).capitalize()} chưa đủ dữ liệu: {upto} ({c['days_with_data']}/{c['days_in_month']} ngày). "
+        f"Chỉ xuất được báo cáo khi đã nhập file VTNet tới hết {end:%d/%m/%Y}."
+    )
 
 
 def _pct(v: float | None) -> str:
@@ -63,10 +91,12 @@ def _pts(v: float) -> str:
 def monthly(
     s: Session, cache: AnalyticsCache, month: str | None, threshold: float | None, scope: Scope
 ) -> dict[str, Any]:
-    months = available_months(s)
+    days = util_repo.data_days(s)
+    months = available_months(days)
     if not months:
         raise ServiceError(422, "Chưa có file tải VTNet nào được xác nhận — chưa lập được báo cáo tháng.")
-    month = month or months[0]
+    # mặc định = tháng đủ dữ liệu mới nhất (tháng đang nhận file tuần chưa xuất được)
+    month = month or next((m for m in months if completeness(m, days)["complete"]), months[0])
     if not _MONTH.match(month):
         raise ServiceError(422, "Tháng phải có dạng YYYY-MM.")
     if month not in months:
@@ -144,6 +174,8 @@ def monthly(
         "vtnet_t": ctx.params.vtnet_low_load_t,
         "scope_owner": scope.owner_key if scope.kind == "owner" else None,
         "available_months": months,
+        "completeness": completeness(month, days),
+        "incomplete_months": [m for m in months if not completeness(m, days)["complete"]],
         "kpi": kpi,
         "trend": trend,
         "previous": previous,

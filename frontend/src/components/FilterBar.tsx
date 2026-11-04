@@ -8,7 +8,7 @@ import { fmtPeriodLabel, fmtRange } from '../lib/format'
 import { useDebouncedValue } from '../lib/useDebounced'
 import { vi } from '../lib/vi'
 import { UNMAPPED } from '../lib/zones'
-import { EMPTY_FILTERS, type Preset, presetRange } from '../store/filters'
+import { clampToData, EMPTY_FILTERS, type Preset, presetRange } from '../store/filters'
 import { useFilters } from '../store/useFilters'
 
 const DATE_FMT = 'DD/MM/YYYY'
@@ -35,8 +35,10 @@ export function FilterBar() {
     return [dayjs(a), dayjs(b)]
   }
   const presets = [
+    { label: vi.filters.last4w, value: mk('4w', dataEnd) },
     ...(meta?.periods ?? [])
       .filter((p) => p.start && p.end)
+      .slice(0, 8) // file tuần: 8 kỳ gần nhất là đủ cho preset
       .map((p) => ({
         label: vi.filters.periodPreset(fmtPeriodLabel(p.label)),
         value: [dayjs(p.start), dayjs(p.end)] as [Dayjs, Dayjs],
@@ -50,7 +52,7 @@ export function FilterBar() {
   const def = meta?.default_range
   const shown: [Dayjs, Dayjs] | null =
     f.start && f.end ? [dayjs(f.start), dayjs(f.end)] : def?.start && def.end ? [dayjs(def.start), dayjs(def.end)] : null
-  const latest = meta?.periods[0]
+  const clamped = clampToData(f.start, f.end, meta?.data_range.start, meta?.data_range.end)
 
   return (
     <Card size="small" styles={{ body: { padding: '10px 12px' } }}>
@@ -72,11 +74,8 @@ export function FilterBar() {
         <Tooltip title={vi.filters.calendarNote}>
           <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
         </Tooltip>
-        {!f.start && latest && (
-          <Tag color="blue">
-            {vi.filters.viewingPeriod(fmtPeriodLabel(latest.label))} ({fmtRange(latest.start, latest.end)})
-          </Tag>
-        )}
+        {!f.start && def?.start && def.end && <Tag color="blue">{vi.filters.viewingDefault(fmtRange(def.start, def.end))}</Tag>}
+        {clamped && <Tag color="gold">{vi.filters.clamped(fmtRange(clamped[0], clamped[1]))}</Tag>}
         <Select
           mode="multiple"
           allowClear

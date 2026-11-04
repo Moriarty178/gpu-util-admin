@@ -38,13 +38,14 @@
 | Roadmap §14.2: **Báo cáo tháng** `.pptx` 7 slide phong cách TT.CN (trang "Báo cáo tháng") | ✅ |
 | Roadmap §14.6: **HTTPS** — nginx giữ chứng chỉ `.pem` (`compose.tls.yaml`), `task.sh tls-check` | ✅ cấu hình + thử chứng chỉ tự ký; ⏳ chứng chỉ thật trên VM |
 | Roadmap §14.3 thông báo đầu mối · §14.4 CPU/RAM (chờ VTNet) · §14.5 kế hoạch cắt chuyển · §14.7 nâng ECharts 6 | ⏳ chưa làm |
+| Roadmap §14.8 **file VTNet theo tuần**: nhãn tuần, kiểm tên file + khoảng trống, mặc định 4 tuần, cắt khoảng xem, chặn báo cáo tháng chưa đủ, xu hướng theo tuần | ✅ |
 
 **Dữ liệu** (máy gốc của admin, có thể đã chép kèm): `data/app.db` (SQLite) đã nhập 5 lô — thống kê 129 IP + VTNet T7, T8, T9,
 T10/2026; file gốc ở `data/uploads/<sha256>.xlsx`; **chưa có tài khoản** (tạo: `bash scripts/task.sh create-admin`).
 File thống kê hiện tại thiếu 11 IP so với VTNet T10 (8 server H200 `10.29.95.x` + 3) → chờ bản thống kê mới (CONTEXT.md §7).
 
-**Mốc test** (máy gốc, 04/11/2026, có `samples/`): `bash scripts/task.sh test` → backend **172 passed / 12 skipped** (SQLite),
-Vitest **44 passed**; `task.sh lint` xanh; với PostgreSQL (`task.sh test-pg`) **279 passed**; E2E `task.sh e2e` **6/6**.
+**Mốc test** (máy gốc, 04/11/2026, có `samples/`): `bash scripts/task.sh test` → backend **190 passed / 12 skipped** (SQLite),
+Vitest **45 passed**; `task.sh lint` xanh; với PostgreSQL (`task.sh test-pg`) **305 passed / 22 skipped**; E2E `task.sh e2e` **6/6**.
 Thiếu `samples/` (dữ liệu thật) → nhiều test tự **skip**, không fail — đó là đúng thiết kế.
 
 **Deploy lên server thật**: chưa làm. Mọi thứ cần biết + danh sách việc còn thiếu: `DEPLOY.md` (đặc biệt §12).
@@ -116,6 +117,7 @@ compose.yaml · compose.tls.yaml · compose.dev.yaml · .env.example · Makefile
 1. **Mọi phép tính nghiệp vụ đi qua `backend/gpu_core`** — không viết lại công thức trong SQL, router, frontend.
 2. **Không tự đổi** luật vùng (biên `<=`), cờ VTNet (`<10`, biên chặt), ngưỡng mặc định, ý nghĩa phép tính → **hỏi người dùng**.
 3. TB toàn bộ server theo ngày = mean đơn giản qua server có mẫu ngày đó; TB 1 server = mean mẫu ngày trong khoảng; `end` trọn ngày.
+   Khoảng mặc định = 4 tuần gần nhất có dữ liệu; khoảng vượt dữ liệu bị cắt về ngày có dữ liệu (PLAN §14.8).
 4. Khóa server là **IP**; ghép thống kê ↔ VTNet qua liên kết IP (`gpu_core.apply_ip_links`).
 5. Mẫu tải **append-only** theo lô, giá trị hiệu lực = lô committed mới nhất; **không UPDATE/DELETE số liệu để "sửa số"** — sai thì
    hoàn tác lô / nhập lại. Luôn giữ file gốc `data/uploads/<sha256>.xlsx`.
@@ -206,7 +208,7 @@ không sudo, không chạy lệnh xóa dữ liệu.
    và `curl -sI -m 5 https://registry.npmjs.org/`, hoặc hỏi tôi địa chỉ mirror). Có các thư mục samples/, data/ (data/app.db, data/uploads/), backend/.venv, frontend/node_modules không.
    Thiếu công cụ → liệt kê cách cài để TÔI tự làm.
 3) Nếu đủ công cụ và thư viện: chạy `bash scripts/task.sh test` và `bash scripts/task.sh lint`, so với mốc ở
-   docs/AI_ONBOARDING.md §2 (172 passed / 12 skipped + Vitest 44 khi có samples/; thiếu samples/ thì skip nhiều hơn, không được fail).
+   docs/AI_ONBOARDING.md §2 (190 passed / 12 skipped + Vitest 45 khi có samples/; thiếu samples/ thì skip nhiều hơn, không được fail).
    Chưa có thư viện thì DỪNG ở bước này, báo tôi cần chạy `bash scripts/task.sh setup` (cần mạng/mirror).
 4) Báo cáo ngắn:
    a. Dự án làm gì, kiến trúc & luồng dữ liệu (≤ 10 dòng).

@@ -122,7 +122,7 @@ def test_reimport_overview_mismatch_and_server_drop(client: TestClient, tmp_path
     assert drop["items"] == ["192.0.2.3", "192.0.2.4", "192.0.2.5", "192.0.2.6"]
     assert "gone_ips" not in codes(b)  # đã gộp vào cảnh báo giảm mạnh
     prev = b["summary"]["previous"]
-    assert (prev["n_ips"], prev["label"], prev["period_start"]) == (6, "2026-10", "2026-10-01")
+    assert (prev["n_ips"], prev["label"], prev["period_start"]) == (6, "2026-W40", "2026-10-01")
 
 
 @pytest.mark.parametrize("path", [T7, T8, T9, T10], ids=["T7", "T8", "T9", "T10"])

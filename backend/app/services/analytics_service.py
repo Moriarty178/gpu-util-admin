@@ -15,7 +15,7 @@ import threading
 from collections import OrderedDict
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Literal
 
 import pandas as pd
@@ -32,6 +32,7 @@ ZONES = ("danger", "warning", "safe")
 ZONE_ORDER = {z: i for i, z in enumerate(ZONES)}
 PATTERNS = ("idle", "bursty_idle", "memory_bound", "compute_bound", "high_load", "healthy")
 UNMAPPED = "_unmapped"
+DEFAULT_WINDOW_DAYS = 28  # khoảng xem mặc định = 4 tuần gần nhất có dữ liệu (người dùng chốt 04/11/2026, PLAN §14.8)
 log = logging.getLogger(__name__)
 Granularity = Literal["day", "week", "month"]
 Weight = Literal["server", "gpu"]
@@ -69,18 +70,23 @@ class Context:
     threshold: float
     params: g.RuleParams
     has_data: bool
+    requested: tuple[date, date] | None = None  # khoảng người dùng chọn khi đã bị cắt về ngày có dữ liệu
 
     @property
     def days_in_range(self) -> int:
         return (self.end - self.start).days + 1
 
     def as_params(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "start": self.start.isoformat(),
             "end": self.end.isoformat(),
             "threshold": self.threshold,
             "days_in_range": self.days_in_range,
+            "clamped": self.requested is not None,
         }
+        if self.requested is not None:
+            out["requested_start"], out["requested_end"] = (d.isoformat() for d in self.requested)
+        return out
 
 
 @dataclass
@@ -149,28 +155,38 @@ def rule_params(settings: dict[str, Any]) -> g.RuleParams:
     )
 
 
+def default_range(lo: date, hi: date) -> tuple[date, date]:
+    """4 tuần gần nhất có dữ liệu: [ngày cuối có dữ liệu − 27, ngày cuối] (không sớm hơn ngày đầu có dữ liệu)."""
+    return max(lo, hi - timedelta(days=DEFAULT_WINDOW_DAYS - 1)), hi
+
+
 def resolve_context(s: Session, start: date | None, end: date | None, threshold: float | None) -> Context:
-    """Mặc định: khoảng = kỳ file VTNet mới nhất ('Theo kỳ file', khớp tuyệt đối overview); T = cài đặt."""
+    """Khoảng mặc định = 4 tuần gần nhất có dữ liệu; T = cài đặt. Khoảng chọn vượt ra ngoài ngày có dữ liệu → CẮT về
+    [ngày đầu, ngày cuối có dữ liệu] (người dùng chốt 04/11/2026): mẫu số "ngày trong khoảng" (độ phủ → dữ liệu mỏng,
+    ngày nguy hiểm…) chỉ tính ngày đã có thể có số liệu — xem 01–31/10 khi mới có tới 18/10 không gắn mỏng cả loạt.
+    Khoảng hoàn toàn ngoài dữ liệu → giữ nguyên (kết quả rỗng)."""
     settings = settings_repo.all_values(s)
     t = float(threshold if threshold is not None else settings.get("default_threshold", g.DEFAULT_THRESHOLD))
-    lo, _hi = util_repo.data_range(s)
-    if start is None or end is None:
-        batches = batch_repo.committed_batches(s, "vtnet_util")
-        latest = batches[0] if batches else None
-        if latest is not None and latest.period_start and latest.period_end:
-            start = start or latest.period_start
-            end = end or latest.period_end
-        else:
-            today = date.today()
-            start, end = start or today, end or today
+    lo, hi = util_repo.data_range(s)
+    if lo is None or hi is None:
+        today = date.today()
+        start, end = start or today, end or today
+    elif start is None and end is None:
+        start, end = default_range(lo, hi)
+    else:
+        start, end = start or lo, end or hi
     if start > end:
         raise ServiceError(422, "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.")
-    return Context(start=start, end=end, threshold=t, params=rule_params(settings), has_data=lo is not None)
+    requested = None
+    if lo is not None and hi is not None and start <= hi and end >= lo and (start < lo or end > hi):
+        requested, start, end = (start, end), max(start, lo), min(end, hi)
+    return Context(start=start, end=end, threshold=t, params=rule_params(settings), has_data=lo is not None,
+                   requested=requested)  # fmt: skip
 
 
 def get_bundle(s: Session, cache: AnalyticsCache, ctx: Context) -> Bundle:
     version = batch_repo.data_version(s)
-    key = (ctx.start, ctx.end, ctx.threshold, ctx.params, version)
+    key = (ctx.start, ctx.end, ctx.threshold, ctx.params, ctx.requested, version)
 
     def build() -> Bundle:
         store = cache.effective(version, lambda: util_repo.effective_frame(s))
@@ -181,7 +197,7 @@ def get_bundle(s: Session, cache: AnalyticsCache, ctx: Context) -> Bundle:
 
 
 def warm_up(engine: Engine, cache: AnalyticsCache) -> None:
-    """Đọc sẵn dữ liệu + tính sẵn 'Theo kỳ file' với T mặc định (gọi nền khi khởi động / sau xác nhận, hoàn tác lô)."""
+    """Đọc sẵn dữ liệu + tính sẵn khoảng mặc định (4 tuần gần nhất) với T mặc định (gọi nền khi khởi động / sau xác nhận, hoàn tác lô)."""
     try:
         with Session(engine) as s:
             get_bundle(s, cache, resolve_context(s, None, None, None))
@@ -656,7 +672,7 @@ def meta(s: Session, scope: Scope) -> dict[str, Any]:
         {
             "gpu_core": g.__version__,
             "data_range": {"start": lo, "end": hi},
-            "default_range": {"start": periods[0]["start"], "end": periods[0]["end"]} if periods else None,
+            "default_range": None if lo is None or hi is None else dict(zip(("start", "end"), default_range(lo, hi))),
             "periods": periods,
             "inventory": None
             if inv_batch is None

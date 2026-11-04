@@ -84,6 +84,17 @@ class ReportSuggestion(BaseModel):
     recommendations: list[Recommendation]
 
 
+class ReportCompleteness(BaseModel):
+    days_in_month: int
+    days_with_data: int = Field(description="Số ngày trong tháng có ít nhất 1 mẫu tải")
+    first: str | None
+    last: str | None
+    complete: bool = Field(
+        description="Dữ liệu đã tới hết tháng — false → không xuất được .pptx (409 month_incomplete)"
+    )
+    missing_days: list[str] = Field(description="Ngày trong tháng (tới ngày dữ liệu cuối) không có mẫu nào")
+
+
 class MonthlyReportOut(BaseModel):
     month: str
     label: str
@@ -93,6 +104,8 @@ class MonthlyReportOut(BaseModel):
     vtnet_t: float
     scope_owner: str | None
     available_months: list[str]
+    completeness: ReportCompleteness
+    incomplete_months: list[str] = Field(description="Tháng chưa đủ dữ liệu (không xuất được báo cáo)")
     kpi: ReportKpi
     trend: list[ReportMonth]
     previous: ReportPrevious | None

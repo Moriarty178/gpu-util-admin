@@ -65,7 +65,7 @@ def edited_t10(tmp_path: Path, ip: str, day: int, gpu: float) -> Path:
 def test_upload_t10_staged_then_commit(client: TestClient, engine: Engine, settings: Settings) -> None:
     b = staged(client, T10)
     assert (b["kind"], b["schema_version"], b["kind_label"]) == ("vtnet_util", "t10", "File tải VTNet")
-    assert (b["period_start"], b["period_end"], b["period_label"]) == ("2026-10-01", "2026-10-05", "2026-10")
+    assert (b["period_start"], b["period_end"], b["period_label"]) == ("2026-10-01", "2026-10-05", "2026-W40")
     sm, v = b["summary"], b["validation"]
     assert (sm["rows"], sm["n_ips"], sm["days"], sm["granularity"], sm["reclaimed"]) == (30, 6, 5, "day", 1)
     assert sm["gpu_models"]["A30"] == {"servers": 3, "cards": 6} and sm["gpu_models"]["H200"]["cards"] == 8

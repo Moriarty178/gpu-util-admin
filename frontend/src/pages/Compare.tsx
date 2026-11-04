@@ -76,6 +76,7 @@ function PeriodsTab() {
   const q = useCompare(f, { a_start: a?.[0], a_end: a?.[1], b_start: b?.[0], b_end: b?.[1] })
   const presets = (meta?.periods ?? [])
     .filter((p) => p.start && p.end)
+    .slice(0, 12)
     .map((p) => ({ label: fmtPeriodLabel(p.label), value: [dayjs(p.start), dayjs(p.end)] as [Dayjs, Dayjs] }))
   const picker = (r: Range, shown: PeriodKpi | undefined, set: (r: Range) => void) => (
     <DatePicker.RangePicker

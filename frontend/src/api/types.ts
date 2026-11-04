@@ -6,6 +6,10 @@ export interface AnalyticsParams {
   end: string
   threshold: number
   days_in_range: number
+  /** Khoảng chọn vượt ra ngoài ngày có dữ liệu → backend đã cắt về [start, end] (PLAN §14.8) */
+  clamped?: boolean
+  requested_start?: string | null
+  requested_end?: string | null
 }
 
 export interface ZoneMatrix {
@@ -404,10 +408,15 @@ export interface CompareOut {
   items: CompareItem[]
 }
 
+export type TrendGranularity = 'month' | 'week'
+
 export interface TrendMonth {
-  month: string
+  /** 'YYYY-MM' hoặc 'YYYY-Www' (tuần ISO, thứ 2 → CN) */
+  period: string
+  month: string | null
   start: string
   end: string
+  n_days: number
   n_servers: number
   zones: Record<Zone, number>
   cards: Record<Zone, number>
@@ -417,6 +426,7 @@ export interface TrendMonth {
 
 export interface TrendOut {
   threshold: number | null
+  granularity: TrendGranularity
   months: TrendMonth[]
 }
 
@@ -482,6 +492,16 @@ export interface ReportDangerRow {
   streak_open: boolean
 }
 
+export interface ReportCompleteness {
+  days_in_month: number
+  days_with_data: number
+  first: string | null
+  last: string | null
+  /** false → chưa đủ tháng: không xuất được .pptx (409 month_incomplete) */
+  complete: boolean
+  missing_days: string[]
+}
+
 export interface MonthlyReportOut {
   month: string
   label: string
@@ -491,6 +511,8 @@ export interface MonthlyReportOut {
   vtnet_t: number
   scope_owner: string | null
   available_months: string[]
+  completeness: ReportCompleteness
+  incomplete_months: string[]
   kpi: {
     gpu_avg: number | null
     mem_avg: number | null

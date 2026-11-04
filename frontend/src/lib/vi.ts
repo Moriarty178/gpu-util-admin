@@ -31,6 +31,7 @@ export const vi = {
   filters: {
     range: 'Khoảng ngày',
     periodPreset: (label: string) => `Theo kỳ file VTNet — ${label}`,
+    last4w: '4 tuần gần nhất',
     thisMonth: 'Tháng này',
     lastMonth: 'Tháng trước',
     lastN: (n: number) => `${n} tháng gần nhất`,
@@ -42,9 +43,10 @@ export const vi = {
     all: 'Tất cả',
     reset: 'Mặc định',
     unmapped: 'Chưa có trong thống kê',
-    viewingPeriod: (label: string) => `Đang xem kỳ file VTNet ${label}`,
+    viewingDefault: (range: string) => `Đang xem 4 tuần gần nhất có dữ liệu (${range})`,
+    clamped: (range: string) => `Số liệu tính trên ${range} — phần còn lại của khoảng đã chọn chưa có dữ liệu`,
     calendarNote:
-      'Chọn tháng dương lịch (vd 01–31/10) lệch nhẹ so với overview VTNet vì file VTNet tính cả ngày tràn (01/11). Dùng "Theo kỳ file VTNet" để khớp tuyệt đối.',
+      'Mặc định = 4 tuần gần nhất có dữ liệu. Khoảng chọn vượt quá ngày có dữ liệu được cắt về ngày có dữ liệu. Muốn khớp tuyệt đối sheet overview của VTNet: chọn "Theo kỳ file VTNet" (file tháng có thể gồm cả ngày tràn, vd 01/11).',
   },
   kpi: {
     gpuAvg: 'GPU TB',
@@ -369,8 +371,10 @@ export const vi = {
     noServers: 'Chọn server để xem biểu đồ',
   },
   trend: {
-    title: 'Xu hướng vùng theo tháng',
-    hint: 'Mỗi tháng tính TB riêng rồi xếp vùng theo ngưỡng T đang chọn (toàn bộ dữ liệu đã nhập).',
+    title: (week: boolean) => (week ? 'Xu hướng vùng theo tuần' : 'Xu hướng vùng theo tháng'),
+    hint: 'Mỗi kỳ (tháng / tuần thứ 2 → CN) tính TB riêng rồi xếp vùng theo ngưỡng T đang chọn (toàn bộ dữ liệu đã nhập). Tuần không có cột = chưa có dữ liệu.',
+    byMonth: 'Theo tháng',
+    byWeek: 'Theo tuần',
     servers: 'Số server',
     cards: 'Số card',
   },
@@ -484,6 +488,12 @@ export const vi = {
     reset: 'Khôi phục gợi ý',
     download: 'Tải báo cáo (.pptx)',
     downloaded: (f: string) => `Đã tải ${f}`,
+    incompleteTag: 'chưa đủ dữ liệu',
+    incomplete: (label: string, upto: string, have: number, total: number, end: string) =>
+      `${label} chưa đủ dữ liệu: ${upto} (${have}/${total} ngày). Chưa xuất được báo cáo — nhập tiếp file VTNet tới hết ${end}. Số liệu dưới đây chỉ để xem trước.`,
+    uptoDay: (d: string) => `mới có dữ liệu tới ${d}`,
+    noDataYet: 'chưa có dữ liệu',
+    missingDays: (n: number, days: string) => `Tháng đã qua nhưng thiếu ${n} ngày không có số liệu: ${days}. Vẫn xuất được — nên ghi chú khi trình.`,
     edited: 'Đã sửa so với gợi ý',
   },
 } as const

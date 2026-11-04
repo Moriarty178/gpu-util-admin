@@ -11,6 +11,7 @@ import type {
   MultiSeriesOut,
   NoteKind,
   NoteList,
+  TrendGranularity,
   TrendOut,
   FleetSummaryOut,
   FleetTimeseriesOut,
@@ -182,8 +183,8 @@ export function useMonthlyReport(month: string | null) {
   return useApi<MonthlyReportOut>('/reports/monthly', new URLSearchParams(month ? { month } : {}))
 }
 
-export function useTrend(f: GlobalFilters) {
-  return useApi<TrendOut>('/trend/zones', apiParams(withoutRange(f)))
+export function useTrend(f: GlobalFilters, granularity: TrendGranularity = 'month') {
+  return useApi<TrendOut>('/trend/zones', apiParams(withoutRange(f), { granularity }))
 }
 
 export function useMultiSeries(f: GlobalFilters, ips: string[], granularity: Granularity) {

@@ -49,6 +49,8 @@ describe('format vi-VN', () => {
   })
   it('nhãn kỳ và số CSV', () => {
     expect(fmtPeriodLabel('2026-10')).toBe('Tháng 10/2026')
+    expect(fmtPeriodLabel('2026-W42')).toBe('Tuần 42/2026')
+    expect(fmtPeriodLabel('2026-W05')).toBe('Tuần 5/2026')
     expect(csvNumber(72.3197)).toBe('72,3')
     expect(csvNumber(null)).toBe('')
   })

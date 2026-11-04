@@ -65,10 +65,12 @@ export function shortGpu(spec: string | null | undefined): string {
   return spec.replace(/\b(NVIDIA|Quadro)\s+/gi, '').replace(/\s+/g, ' ').trim()
 }
 
-/** Kỳ 'YYYY-MM' → 'Tháng 10/2026'. */
+/** Kỳ 'YYYY-MM' → 'Tháng 10/2026'; tuần ISO 'YYYY-Www' → 'Tuần 42/2026' (file VTNet theo tuần, PLAN §14.8). */
 export function fmtPeriodLabel(label: string | null | undefined): string {
   const m = label ? /^(\d{4})-(\d{2})$/.exec(label) : null
-  return m ? `Tháng ${Number(m[2])}/${m[1]}` : (label ?? DASH)
+  if (m) return `Tháng ${Number(m[2])}/${m[1]}`
+  const w = label ? /^(\d{4})-W(\d{2})$/.exec(label) : null
+  return w ? `Tuần ${Number(w[2])}/${w[1]}` : (label ?? DASH)
 }
 
 /** Giá trị CSV kiểu Excel tiếng Việt: dấu thập phân ',' (dùng với dấu phân cách ';'). */

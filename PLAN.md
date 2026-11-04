@@ -345,7 +345,8 @@ Bảng vùng × đầu mối có cột **"Chưa có trong thống kê"** cho IP 
 **Phạm vi theo tài khoản** — GĐ1 luôn `Scope(all)`. [GĐ2] `owner` + `own` → tập IP = `effective_ip` của `inventory_current`
 có `owner = owner_key`; không thấy VTNet-only/đầu mối khác; Tổng quan ghi "Server của tôi (N)"; ngoài phạm vi → 404; export cắt theo phạm vi.
 
-**Preset khoảng ngày**: "Theo kỳ file VTNet" (khớp tuyệt đối overview, vd 01/10–01/11), Tháng này, Tháng trước, 3/6/12 tháng, Tùy chọn.
+**Preset khoảng ngày**: 4 tuần gần nhất (= mặc định từ 04/11/2026, §14.8), "Theo kỳ file VTNet" (khớp tuyệt đối overview, vd
+01/10–01/11; file tuần: "Tuần 42/2026"), Tháng này, Tháng trước, 3/6/12 tháng, Tùy chọn.
 Ghi chú UI: chọn "Tháng 10" dương lịch (01–31/10) lệch nhẹ so với overview vì VTNet tính cả 01/11.
 
 **Hiệu năng**: lấy `util_effective` theo khoảng (+ lọc IP) → DataFrame → `gpu_core`. Cache LRU trong tiến trình theo
@@ -568,7 +569,7 @@ Lịch sử lô: # · Loại · File · Kỳ · Trạng thái · Thời điểm 
 - [x] Test hiệu năng: fixture tổng hợp 3 năm × 120 server ≤ 1 s (đánh dấu `slow`) — 12 tháng: 0,11–0,30 s/endpoint (trung vị, chưa có kết quả tính sẵn);
       đọc sẵn 3 năm: ~2,6 s, 1 lần / phiên bản dữ liệu, chạy nền
 - **Nghiệm thu**: OpenAPI (`/api/v1/openapi.json`) đầy đủ (test kiểm đủ 15 endpoint GĐ1 + summary); mọi test xanh (95 passed, 13 skipped do thiếu dữ liệu thật). Đã kiểm 03/11/2026.
-- Ghi chú: `/docs` và `/redoc` đã tắt (Q17, 03/11/2026 — Swagger UI tải từ CDN); đặc tả tại `/api/v1/openapi.json`. Khoảng ngày mặc định = kỳ file VTNet mới nhất; `zones` để trống = mọi vùng
+- Ghi chú: `/docs` và `/redoc` đã tắt (Q17, 03/11/2026 — Swagger UI tải từ CDN); đặc tả tại `/api/v1/openapi.json`. Khoảng ngày mặc định = kỳ file VTNet mới nhất (từ 04/11/2026: 4 tuần gần nhất có dữ liệu, §14.8); `zones` để trống = mọi vùng
   (UI mặc định chọn Nguy hiểm); `owner=_unmapped` lọc server VTNet chưa có trong thống kê.
 
 #### G1-M3 — Giao diện 5 trang
@@ -807,3 +808,29 @@ Golden **độc lập**: chỉ so với (a) sheet VTNet tự tính, (b) kết qu
      được IP trong Nhật ký). `task.sh tls-check` (scripts/tls_check.sh). Hướng dẫn DEPLOY.md §8. Còn: thử chứng chỉ thật trên VM
    - [ ] SSO/LDAP (chỉ khi chính sách yêu cầu) · K8s nội bộ (nếu cần)
 7. **Nâng ECharts 5 → 6** (vá XSS GHSA-fgmj-fm8m-jvvx; thay đổi lớn) — người dùng chọn "để sau" 03/11/2026. Hiện đã giảm thiểu bằng CSP + `safeLabel` (docs/SECURITY_REVIEW.md §5). Khi làm: chạy lại Vitest + E2E + kiểm tay các biểu đồ.
+8. **File VTNet theo chu kỳ TUẦN** (người dùng dự định đề nghị VTNet 04/11/2026) — **[x] làm 04/11/2026**. Phân tích: thử 3 file tuần
+   tổng hợp (28/09–04/10 vắt 2 tháng, 05–11/10, 12–18/10): nhập được, không cảnh báo giả, lô mới thắng ngày trùng (không cần đổi
+   schema / gpu_core / luật vùng). Chỗ phải sửa: (a) nhãn kỳ = tháng chiếm nhiều ngày nhất → 3 lô cùng "Tháng 10/2026" ở bộ lọc /
+   So sánh, banner "Đang xem kỳ file Tháng 10/2026" khi chỉ là 1 tuần; (b) báo cáo tháng lấy tháng từ nhãn lô → tháng 9 có 3 ngày dữ
+   liệu nhưng `/reports/monthly?month=2026-09` 404; tháng 10 mới có 18/31 ngày vẫn ghi "tháng 10/2026" không báo thiếu; (c) xem cả
+   tháng khi mới có 18 ngày → **6/6 server bị gắn "dữ liệu mỏng"** (độ phủ 18/31 < 0,8), khoảng 01–18/10 thì 0/6; (d) không có phép
+   kiểm khoảng trống giữa 2 lô (thiếu 1 tuần không ai biết); (e) kiểm tên file chỉ hiểu "tháng N", chưa hiểu "tuần N".
+   Câu hỏi chờ người dùng: khoảng xem mặc định (tuần mới nhất / 4 tuần / tháng đến nay); báo cáo tháng chưa đủ ngày (tạm tính hay
+   chặn); khoảng xem vượt quá dữ liệu có cắt về ngày có dữ liệu không (đổi mẫu số độ phủ — quyết định của người dùng); có cần xu
+   hướng / so sánh theo tuần, báo cáo tuần. Thỏa thuận với VTNet: giữ nguyên cấu trúc sheet, tuần thứ 2 → CN, ngày trùng cùng giá trị.
+   - **Người dùng chốt**: (1) mặc định **4 tuần gần nhất**; (2) tháng chưa đủ → **chặn xuất** báo cáo tháng + cảnh báo; (3) **cắt**
+     khoảng xem về ngày có dữ liệu; (4) chỉ làm **xu hướng theo tuần**, không làm báo cáo tuần.
+   - Đã làm: nhãn kỳ lô = tuần ISO `YYYY-Www` khi file ≤ 10 ngày (`import_checks.period_label`, hòa → tuần sớm hơn), file dài hơn giữ
+     `YYYY-MM`; UI "Tuần 42/2026". Phép kiểm mới: `filename_week` (cần xác nhận; "tuần N tháng M" = tuần của tháng → không so),
+     `filename_month` không báo khi file tuần vắt tháng có tháng ghi trên tên, `coverage_gap` (cần xác nhận: khoảng ngày chưa có lô nào
+     giữa file mới và lô gần nhất trước/sau; file nhập lại không thêm ngày mới → không báo). Mặc định `resolve_context` = [ngày cuối có
+     dữ liệu − 27, ngày cuối] (`DEFAULT_WINDOW_DAYS`); khoảng vượt dữ liệu → cắt, `params.clamped` + `requested_start/end`; UI ghi chú
+     "Số liệu tính trên …". Báo cáo: tháng lấy từ ngày có dữ liệu (`util_repo.data_days`), `completeness` (đủ tháng = dữ liệu đã tới
+     ngày cuối tháng; tháng đã qua thiếu ngày lẻ vẫn xuất + ghi chú — vd T7 thiếu 31/07), mặc định = tháng đủ mới nhất, POST .pptx
+     tháng chưa đủ → 409 `month_incomplete`, nút tải khóa. `/trend/zones?granularity=week` (tuần ISO cắt theo dữ liệu, `period`,
+     `n_days`, tối đa 156 tuần) + nút "Theo tháng / Theo tuần" ở Tổng quan. Preset "4 tuần gần nhất".
+   - Nghiệm thu: `test_weekly.py` (15: nhãn, tên file, khoảng trống tính tay, mặc định 4 tuần, cắt khoảng — không cắt thì 6/6 server
+     "mỏng"; thật: T8 sau T7 báo đúng 1 ngày trống 31/07), `test_reports` (tháng chưa đủ → 409, tháng đã qua thiếu 26 ngày vẫn xuất),
+     `test_g2m3` (xu hướng tuần tính tay W40–W45: 2/2/2 · 1/3/2 · 0 · 0 · 3/1/2 · 3/1/2). Dữ liệu thật T7–T10: mặc định 05/10–01/11
+     (10 Nguy hiểm / 47 Cảnh báo / 35 An toàn); 18 tuần W27–W44; báo cáo T10 giữ nguyên số (38,9% · 11 Nguy hiểm), T11 (chỉ ngày tràn
+     01/11) bị chặn. Golden §7 giữ nguyên khi gọi đúng khoảng kỳ file.

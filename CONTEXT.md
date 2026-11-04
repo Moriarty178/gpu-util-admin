@@ -164,6 +164,9 @@ Xu hướng T7 → T10 (chỉ để định hướng UI so sánh kỳ): TB gpu 2
   Golden "thống kê T10" ở bảng trên (137 dòng: 34/45/10, kientt6 48, 137 = 89/13/35, 280 công thức) cần **bản 137 dòng**, đặt tên
   `Thong_ke_toan_bo_server_TTCN_VTT_ban137.xlsx` → khi chưa có, các test đó tự skip. Không sinh golden mới từ code.
 - Golden T7 → T10 ở trên (20 / 5 / 9 / 5; Nguy hiểm 19 → 11) **đã đạt** với các file này.
+- **Chu kỳ tuần** (dự kiến, PLAN §14.8): file tuần giữ nguyên cấu trúc sheet, tuần ISO thứ 2 → CN. File T7 thật dừng ở 30/07 →
+  nhập T8 sau T7 báo khoảng trống 1 ngày (31/07); báo cáo tháng 7 vẫn xuất được (30/31 ngày, ghi chú thiếu 31/07). Dữ liệu T7–T10:
+  khoảng mặc định 4 tuần = 05/10–01/11 → 10 / 47 / 35 (Nguy hiểm / Cảnh báo / An toàn) — số định hướng, không phải golden.
 - Với file thống kê 134 dòng, kỳ T10 có **11 IP VTNet chưa có trong thống kê** (8 server H200 cụm `10.29.95.x` — đều An toàn,
   tải cao — + `10.221.122.33`, `10.221.155.36`, `10.221.155.37`) → map được 81/92, ma trận dungha7 16/18/5, kientt6 10/27/5.
   Chênh với golden bản 137 dòng (89 map, 18/18/5 · 16/27/5) đúng bằng 8 server An toàn → bản 137 dòng nhiều khả năng đã có cụm H200.

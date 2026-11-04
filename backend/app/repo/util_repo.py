@@ -56,6 +56,17 @@ def insert_reclaim(s: Session, batch_id: int, reclaimed: pd.DataFrame) -> int:
     return len(rows)
 
 
+def data_days(s: Session) -> list[date]:
+    """Các ngày có ít nhất 1 mẫu tải hiệu lực (hợp các lô VTNet committed — ngày của util_effective), tăng dần."""
+    stmt = (
+        select(UtilSample.ts)
+        .join(ImportBatch, ImportBatch.id == UtilSample.batch_id)
+        .where(ImportBatch.kind == "vtnet_util", ImportBatch.status == "committed")
+        .distinct()
+    )
+    return sorted({(t.date() if isinstance(t, datetime) else t) for t in s.scalars(stmt)})
+
+
 def batch_ips(s: Session, batch_id: int) -> set[str]:
     return set(s.scalars(select(UtilSample.ip).where(UtilSample.batch_id == batch_id).distinct()))
 

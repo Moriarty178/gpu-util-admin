@@ -215,15 +215,19 @@ def _stage_vtnet(s: Session, batch: ImportBatch, path: Path) -> None:
     new_ips = sorted(set(ips) - prev_ips) if prev else []
     gone_ips = sorted(prev_ips - set(ips)) if prev else []
     overlap_days = sorted({d.date().isoformat() for d in both["ts"]})
+    days = sorted({d.date() for d in raw["ts"].dt.normalize().unique()})
+    label = checks.period_label(start.date(), end.date(), days, wb.dominant_month)
+    coverage = [(b.period_start, b.period_end) for b in batch_repo.committed_batches(s, KIND_VTNET)
+                if b.period_start and b.period_end]  # fmt: skip
     found = checks.run_checks(
         file_name=batch.file_name, wb=wb, raw=raw, start=start, end=end, today=checks.today(),
         prev=prev_pv, new_ips=new_ips, gone_ips=gone_ips, replaced=int(changed.sum()), overlap_days=overlap_days,
-        overview=overview, pv=pv, daily=daily,
+        overview=overview, pv=pv, daily=daily, label=label, coverage=coverage,
     )  # fmt: skip
 
     batch.schema_version = wb.schema
     batch.period_start, batch.period_end = start.date(), end.date()
-    batch.period_label = wb.dominant_month
+    batch.period_label = label
     batch.summary = jsonable(
         {
             "schema": wb.schema,

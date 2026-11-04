@@ -5,6 +5,7 @@
                  · .7 50/50 An toàn (chỉ có ở T9)
   T10 = synthetic_t10.xlsx: .1 .2 An toàn · .3 .4 Cảnh báo · .5 Nguy hiểm (1 card) · .6 Nguy hiểm (8 card, chưa có thống kê)
 T9 → T10: .2 cải thiện, .6 mới, .7 không còn, 4 server (.1 .3 .4 .5) giữ nguyên. Chuỗi Nguy hiểm: .5 = T8, T9, T10 (3, chạm tháng đầu → '≥').
+  T11 = 1 ngày 01/11 (chỉ .1) → tháng 10 "đã qua" (dữ liệu tới 01/11) nên xuất được; tháng 11 chưa đủ → chặn xuất (PLAN §14.8).
 """
 
 from __future__ import annotations
@@ -50,6 +51,10 @@ def three_months(client: TestClient, tmp_path: Path) -> TestClient:
         upload(client, p)
     upload(client, FIX / "synthetic_inventory.xlsx")
     upload(client, FIX / "synthetic_t10.xlsx")
+    p = tmp_path / "synthetic_t11_1ngay.xlsx"
+    make_synthetic.make_t10(p, series={"192.0.2.1": ("4×NVIDIA L40S", [80], [85])}, days=[dt.datetime(2026, 11, 1)],
+                            reclaimed=False)  # fmt: skip
+    upload(client, p)
     return client
 
 
@@ -61,9 +66,14 @@ def report(c: TestClient, **params: Any) -> dict[str, Any]:
 
 
 def test_monthly_numbers(three_months: TestClient) -> None:
-    d = report(three_months)  # mặc định = tháng mới nhất
+    d = report(three_months)  # mặc định = tháng ĐỦ dữ liệu mới nhất (tháng 11 mới có 01/11)
     assert (d["month"], d["label"], d["start"], d["end"]) == ("2026-10", "tháng 10/2026", "2026-10-01", "2026-10-31")
-    assert d["available_months"] == ["2026-10", "2026-09", "2026-08"] and d["threshold"] == 40
+    assert d["available_months"] == ["2026-11", "2026-10", "2026-09", "2026-08"] and d["threshold"] == 40
+    assert d["incomplete_months"] == ["2026-11"]
+    c = d["completeness"]
+    assert (c["days_in_month"], c["days_with_data"], c["first"], c["last"], c["complete"]) == (
+        31, 5, "2026-10-01", "2026-10-05", True)  # fmt: skip
+    assert c["missing_days"] == [f"2026-10-{d:02d}" for d in range(6, 32)]  # tháng đã qua, thiếu ngày → vẫn xuất được
     k = d["kpi"]
     assert k["zones"] == {"danger": 2, "warning": 2, "safe": 2} and k["n_servers"] == 6 and k["n_unmapped"] == 1
     assert k["gpu_avg"] == pytest.approx(OCT_GPU) and k["mem_avg"] == pytest.approx((85 + 60 + 90 + 20 + 3 + 30) / 6)
@@ -97,8 +107,23 @@ def test_earlier_month_and_errors(three_months: TestClient) -> None:
     d = report(three_months, month="2026-08")
     assert d["previous"] is None and d["movement"] is None and [m["month"] for m in d["trend"]] == ["2026-08"]
     assert d["danger"][0]["streak_open"] is True  # tháng đầu có dữ liệu → có thể dài hơn
-    assert three_months.get("/api/v1/reports/monthly", params={"month": "2026-11"}).status_code == 404
+    assert three_months.get("/api/v1/reports/monthly", params={"month": "2026-12"}).status_code == 404
     assert three_months.get("/api/v1/reports/monthly", params={"month": "2026-13"}).status_code == 422
+
+
+def test_incomplete_month_blocks_export(three_months: TestClient) -> None:
+    d = report(three_months, month="2026-11")  # xem được số
+    c = d["completeness"]
+    assert (c["days_with_data"], c["days_in_month"], c["last"], c["complete"], c["missing_days"]) == (
+        1, 30, "2026-11-01", False, [])  # fmt: skip
+    r = three_months.post("/api/v1/reports/monthly.pptx", json={"month": "2026-11"})
+    assert r.status_code == 409 and r.json()["type"] == "month_incomplete"
+    assert r.json()["detail"] == (
+        "Tháng 11/2026 chưa đủ dữ liệu: mới có dữ liệu tới 01/11/2026 (1/30 ngày). "
+        "Chỉ xuất được báo cáo khi đã nhập file VTNet tới hết 30/11/2026."
+    )
+    log = three_months.get("/api/v1/audit", params={"action": "report_exported"}).json()["items"]
+    assert log == []  # bị chặn → không ghi "đã xuất"
 
 
 def test_no_data(client: TestClient) -> None:
@@ -172,6 +197,13 @@ def test_real_t7_t10_golden(client: TestClient) -> None:
         upload(client, p)
     d = report(client, month="2026-10")
     assert [m["month"] for m in d["trend"]] == ["2026-07", "2026-08", "2026-09", "2026-10"]  # không có "tháng 11"
+    assert d["incomplete_months"] == ["2026-11"]  # ngày tràn 01/11 của file T10 → tháng 11 có 1 ngày, chưa đủ
+    t7 = report(client, month="2026-07")["completeness"]
+    assert (t7["complete"], t7["days_with_data"], t7["missing_days"]) == (
+        True,
+        30,
+        ["2026-07-31"],
+    )  # file T7 dừng ở 30/07
     t7 = d["trend"][0]
     assert (t7["n_servers"], t7["zones"]) == (88, {"danger": 19, "warning": 48, "safe": 21})
     assert d["kpi"]["zones"]["danger"] == 11 and len(d["danger"]) == 11

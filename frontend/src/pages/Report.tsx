@@ -8,7 +8,7 @@ import { Kpi } from '../components/Kpi'
 import { ErrorState, Loading } from '../components/States'
 import { downloadBlob } from '../lib/csv'
 import { fmtDelta } from '../lib/compare'
-import { fmtInt, fmtPct, fmtPeriodLabel, fmtRange } from '../lib/format'
+import { fmtDate, fmtInt, fmtPct, fmtPeriodLabel, fmtRange } from '../lib/format'
 import { draftErrors, REPORT_LIMITS, reportBody, type ReportDraft } from '../lib/report'
 import { vi } from '../lib/vi'
 import { ZONE_META } from '../lib/zones'
@@ -106,6 +106,10 @@ export default function Report() {
   if (q.error && !(q.error instanceof ApiError && q.error.status === 422)) return <ErrorState error={q.error} onRetry={() => q.refetch()} />
   if (!d || !draft || !suggestion) return <Card><Empty description={q.error ? errorMessage(q.error) : vi.empty} /></Card>
 
+  const c = d.completeness
+  const incomplete = new Set(d.incomplete_months)
+  const label = fmtPeriodLabel(d.month)
+  const monthEnd = fmtDate(d.end)
   const errors = draftErrors(draft)
   const body = reportBody(d.month, draft, suggestion)
   const edited = Object.keys(body).length > 1
@@ -129,16 +133,27 @@ export default function Report() {
         <Space wrap align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space wrap>
             <Typography.Text strong>{t.month}</Typography.Text>
-            <Select style={{ minWidth: 170 }} value={d.month} onChange={setMonth}
-              options={d.available_months.map((m) => ({ value: m, label: fmtPeriodLabel(m) }))} />
+            <Select style={{ minWidth: 230 }} value={d.month} onChange={setMonth}
+              options={d.available_months.map((m) => ({
+                value: m,
+                label: incomplete.has(m) ? `${fmtPeriodLabel(m)} — ${t.incompleteTag}` : fmtPeriodLabel(m),
+              }))} />
             <Typography.Text type="secondary">{fmtRange(d.start, d.end)} · T = {d.threshold}%</Typography.Text>
           </Space>
-          <Button type="primary" icon={<DownloadOutlined />} loading={busy} disabled={errors.length > 0} onClick={download}>
+          <Button type="primary" icon={<DownloadOutlined />} loading={busy} disabled={errors.length > 0 || !c.complete}
+            onClick={download}>
             {t.download}
           </Button>
         </Space>
         <Typography.Paragraph type="secondary" style={{ margin: '8px 0 0' }}>{t.hint}</Typography.Paragraph>
       </Card>
+      {!c.complete && (
+        <Alert type="warning" showIcon
+          message={t.incomplete(label, c.last ? t.uptoDay(fmtDate(c.last)) : t.noDataYet, c.days_with_data, c.days_in_month, monthEnd)} />
+      )}
+      {c.complete && c.missing_days.length > 0 && (
+        <Alert type="info" showIcon message={t.missingDays(c.missing_days.length, c.missing_days.slice(0, 10).map((x) => fmtDate(x)).join(', ') + (c.missing_days.length > 10 ? ', …' : ''))} />
+      )}
       {d.scope_owner && <Alert type="info" showIcon message={t.scopeOwn(d.scope_owner)} />}
       <Summary d={d} />
       <Row gutter={[12, 12]}>

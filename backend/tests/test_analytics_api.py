@@ -56,8 +56,9 @@ def loaded(client: TestClient) -> TestClient:
 
 
 def test_fleet_timeseries_day_server(loaded: TestClient) -> None:
-    ts = get(loaded, "/fleet/timeseries")  # mặc định: kỳ file mới nhất 01–05/10
-    assert ts["params"] == {"start": "2026-10-01", "end": "2026-10-05", "threshold": 40.0, "days_in_range": 5}
+    ts = get(loaded, "/fleet/timeseries")  # mặc định: 4 tuần gần nhất, cắt về dữ liệu (chỉ có 01–05/10)
+    assert ts["params"] == {"start": "2026-10-01", "end": "2026-10-05", "threshold": 40.0, "days_in_range": 5,
+                            "clamped": False, "requested_start": None, "requested_end": None}  # fmt: skip
     assert [p["date"] for p in ts["points"]] == [f"2026-10-0{d}" for d in range(1, 6)]
     d1, d5 = ts["points"][0], ts["points"][-1]
     assert d1["gpu"] == pytest.approx((80 + 50 + 5 + 60 + 2 + 0) / 6) and d1["mem"] == pytest.approx(288 / 6)
@@ -252,7 +253,7 @@ def test_hourly_data_aggregated_in_api(client: TestClient) -> None:
 def test_meta(loaded: TestClient) -> None:
     m = get(loaded, "/meta")
     assert m["data_range"] == {"start": "2026-10-01", "end": "2026-10-05"}
-    assert m["default_range"] == {"start": "2026-10-01", "end": "2026-10-05"} and m["periods"][0]["label"] == "2026-10"
+    assert m["default_range"] == {"start": "2026-10-01", "end": "2026-10-05"} and m["periods"][0]["label"] == "2026-W40"
     assert m["owners"] == ["dungha7", "kientt6"] and m["managed_by"] == ["Server độc lập"]
     assert (
         m["gpu_models"] == ["A30", "H200", "L4", "L40S"] and m["inventory"]["file_name"] == "synthetic_inventory.xlsx"

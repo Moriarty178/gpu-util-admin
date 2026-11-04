@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
 from app.deps import ScopeDep, SessionDep, UserDep
+from app.errors import ServiceError
 from app.reports import monthly_deck
 from app.routers.analytics_common import CacheDep, Threshold, errors
 from app.schemas.report import MONTH_PATTERN, MonthlyReportIn, MonthlyReportOut
@@ -24,7 +25,8 @@ PPTX_MEDIA = "application/vnd.openxmlformats-officedocument.presentationml.prese
     "/monthly",
     response_model=MonthlyReportOut,
     summary="Số liệu báo cáo tháng: KPI, xu hướng ≤ 6 tháng, so với tháng trước, đầu mối, server Nguy hiểm + gợi ý",
-    description="Tháng dương lịch (01 → cuối tháng). Mặc định = tháng có lô VTNet mới nhất. Áp phạm vi người dùng.",
+    description="Tháng dương lịch (01 → cuối tháng). Mặc định = tháng đủ dữ liệu mới nhất. Tháng chưa đủ dữ liệu "
+    "(`completeness.complete=false`) vẫn xem được số, không xuất được .pptx. Áp phạm vi người dùng.",
     responses=errors(404, 422),
 )
 def monthly(
@@ -41,10 +43,12 @@ def monthly(
     "/monthly.pptx",
     response_class=Response,
     summary="Tải deck báo cáo tháng (.pptx, 7 slide) — thông điệp / kiến nghị trống = dùng gợi ý",
-    responses={200: {"content": {PPTX_MEDIA: {}}}, **errors(404, 422)},
+    responses={200: {"content": {PPTX_MEDIA: {}}}, **errors(404, 409, 422)},
 )
 def monthly_pptx(body: MonthlyReportIn, s: SessionDep, cache: CacheDep, scope: ScopeDep, user: UserDep) -> Response:
     data = svc.monthly(s, cache, body.month, body.threshold, scope)
+    if not data["completeness"]["complete"]:
+        raise ServiceError(409, svc.incomplete_message(data["month"], data["completeness"]), type_="month_incomplete")
     sug = data["suggestion"]
     message = body.message or sug["message"]
     recs = (

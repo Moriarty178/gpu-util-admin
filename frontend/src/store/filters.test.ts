@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { toCsv } from '../lib/csv'
-import { apiParams, EMPTY_FILTERS, globalSearch, parseFilters, parseList, presetRange, writeFilters } from './filters'
+import { apiParams, clampToData, EMPTY_FILTERS, globalSearch, parseFilters, parseList, presetRange, writeFilters } from './filters'
 
 const sp = (s: string) => new URLSearchParams(s)
 
@@ -49,6 +49,7 @@ describe('bộ lọc toàn cục ⇄ URL', () => {
     expect(presetRange('last_month', '2026-11-03')).toEqual(['2026-10-01', '2026-10-31'])
     expect(presetRange('3m', '2026-11-01')).toEqual(['2026-08-02', '2026-11-01'])
     expect(presetRange('12m', '2026-10-31')).toEqual(['2025-11-01', '2026-10-31'])
+    expect(presetRange('4w', '2026-10-25')).toEqual(['2026-09-28', '2026-10-25']) // = default_range backend (28 ngày)
     expect(presetRange('last_month', '2026-03-31')).toEqual(['2026-02-01', '2026-02-28'])
   })
   it('danh sách trong URL chỉ giữ giá trị hợp lệ, theo thứ tự chuẩn', () => {
@@ -67,5 +68,16 @@ describe('CSV cho Excel tiếng Việt', () => {
       '10.0.0.2;"nói ""xin chào"""',
       '10.0.0.3;',
     ])
+  })
+})
+
+describe('clampToData', () => {
+  it('khoảng vượt ngày có dữ liệu → khoảng đã cắt; nằm trong / ngoài hẳn / thiếu → null', () => {
+    expect(clampToData('2026-10-01', '2026-10-31', '2026-09-21', '2026-10-25')).toEqual(['2026-10-01', '2026-10-25'])
+    expect(clampToData('2026-09-01', '2026-11-30', '2026-09-21', '2026-10-25')).toEqual(['2026-09-21', '2026-10-25'])
+    expect(clampToData('2026-10-01', '2026-10-20', '2026-09-21', '2026-10-25')).toBeNull()
+    expect(clampToData('2026-12-01', '2026-12-31', '2026-09-21', '2026-10-25')).toBeNull()
+    expect(clampToData(undefined, undefined, '2026-09-21', '2026-10-25')).toBeNull()
+    expect(clampToData('2026-10-01', '2026-10-31', null, null)).toBeNull()
   })
 })

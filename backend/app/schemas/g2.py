@@ -170,9 +170,11 @@ class CompareOut(BaseModel):
 
 
 class TrendMonth(BaseModel):
-    month: str = Field(description="YYYY-MM")
+    period: str = Field(description="YYYY-MM (theo tháng) hoặc YYYY-Www (tuần ISO, thứ 2 → CN)")
+    month: str | None = Field(None, description="YYYY-MM — chỉ có khi granularity=month")
     start: dt.date
     end: dt.date
+    n_days: int = Field(description="Số ngày của kỳ (kỳ đầu/cuối cắt theo ngày có dữ liệu)")
     n_servers: int
     zones: dict[str, int]
     cards: dict[str, int]
@@ -182,7 +184,8 @@ class TrendMonth(BaseModel):
 
 class TrendOut(BaseModel):
     threshold: float | None
-    months: list[TrendMonth]
+    granularity: Literal["month", "week"] = "month"
+    months: list[TrendMonth] = Field(description="Các kỳ (tháng hoặc tuần theo `granularity`), cũ → mới")
 
 
 class SeriesPoint(BaseModel):

@@ -8,7 +8,7 @@ Mọi hàm áp `Scope` + bộ lọc toàn cục như các trang phân tích khá
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -37,6 +37,8 @@ from app.services.analytics_service import (
 MOVEMENTS = ("worsened", "improved", "same", "new", "gone")
 MAX_COMPARE_SERVERS = 5
 MAX_TREND_MONTHS = 36
+MAX_TREND_WEEKS = 156  # 3 năm theo tuần ISO
+TrendGranularity = Literal["month", "week"]
 META = ["inventory_ip", "owner", "service", "model", "gpu_type", "gpu_model", "cards", "mapped"]
 
 
@@ -116,6 +118,16 @@ def compare(
     }
 
 
+def _weeks(start: date, end: date) -> list[tuple[date, date]]:
+    """Tuần ISO (thứ 2 → CN) cắt theo [start, end] — tuần đầu/cuối có thể ngắn hơn 7 ngày."""
+    out = []
+    cur = start - timedelta(days=start.weekday())
+    while cur <= end:
+        out.append((max(cur, start), min(cur + timedelta(days=6), end)))
+        cur += timedelta(days=7)
+    return out
+
+
 def _months(start: date, end: date) -> list[tuple[date, date]]:
     out = []
     cur = date(start.year, start.month, 1)
@@ -128,21 +140,24 @@ def _months(start: date, end: date) -> list[tuple[date, date]]:
 
 def trend_zones(
     s: Session, cache: AnalyticsCache, start: date | None, end: date | None, threshold: float | None, f: Filters,
-    scope: Scope,
+    scope: Scope, granularity: TrendGranularity = "month",
 ) -> dict[str, Any]:  # fmt: skip
-    """Số server từng vùng theo tháng (mỗi tháng tính riêng: TB tháng → vùng theo T). Mặc định = toàn bộ dữ liệu."""
+    """Số server từng vùng theo tháng hoặc tuần ISO (mỗi kỳ tính riêng: TB kỳ → vùng theo T). Mặc định = toàn bộ dữ liệu.
+    Kỳ đầu/cuối cắt theo ngày có dữ liệu (`start`/`end`, `n_days`)."""
     lo, hi = util_repo.data_range(s)
     if lo is None or hi is None:
-        return {"threshold": resolve_context(s, None, None, threshold).threshold, "months": []}
-    start, end = start or lo, end or hi
+        return {"threshold": resolve_context(s, None, None, threshold).threshold, "granularity": granularity,
+                "months": []}  # fmt: skip
+    start, end = max(start or lo, lo), min(end or hi, hi)
     if start > end:
         raise ServiceError(422, "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.")
-    months = _months(start, end)
-    if len(months) > MAX_TREND_MONTHS:
-        raise ServiceError(422, f"Khoảng quá dài — tối đa {MAX_TREND_MONTHS} tháng.")
+    periods = _weeks(start, end) if granularity == "week" else _months(start, end)
+    limit = MAX_TREND_WEEKS if granularity == "week" else MAX_TREND_MONTHS
+    if len(periods) > limit:
+        raise ServiceError(422, f"Khoảng quá dài — tối đa {limit} {'tuần' if granularity == 'week' else 'tháng'}.")
     out = []
     t = None
-    for m_start, m_end in months:
+    for m_start, m_end in periods:
         ctx: Context = resolve_context(s, m_start, m_end, threshold)
         t = ctx.threshold
         b = get_bundle(s, cache, ctx)
@@ -150,10 +165,13 @@ def trend_zones(
         zones = {z: int((srv["zone"] == z).sum()) if not srv.empty else 0 for z in ZONES}
         cards = {z: int(srv.loc[srv["zone"] == z, "cards"].sum()) if not srv.empty else 0 for z in ZONES}
         fs = fleet_summary(b, f, scope)
+        iso = m_start.isocalendar()
         out.append(
             {
-                "month": f"{m_start:%Y-%m}",
+                "period": f"{iso[0]}-W{iso[1]:02d}" if granularity == "week" else f"{m_start:%Y-%m}",
+                "month": None if granularity == "week" else f"{m_start:%Y-%m}",
                 "start": m_start.isoformat(),
+                "n_days": (m_end - m_start).days + 1,
                 "end": m_end.isoformat(),
                 "n_servers": len(srv),
                 "zones": zones,
@@ -162,7 +180,7 @@ def trend_zones(
                 "mem_avg": fs["mem_avg"],
             }
         )
-    return {"threshold": t, "months": out}
+    return {"threshold": t, "granularity": granularity, "months": out}
 
 
 def servers_timeseries(b: Bundle, ips: list[str], scope: Scope, granularity: Granularity) -> dict[str, Any]:

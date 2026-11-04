@@ -113,7 +113,8 @@ def test_alerts_t40_period_all_vtnet_servers(t10: TestClient) -> None:
     assert [i["ip"] for i in a["items"] if i["vtnet_low_load"]] == ["10.221.122.33"]
     thin = [(i["ip"], i["days"]) for i in a["items"] if i["thin_data"]]
     assert thin == [("10.254.135.34", 21)]
-    assert get(t10, "/alerts")["matrix"]["totals"] == a["matrix"]["totals"]  # mặc định = 'Theo kỳ file' + T cài đặt
+    d = get(t10, "/alerts")["params"]  # mặc định = 4 tuần gần nhất có dữ liệu (PLAN §14.8) + T cài đặt
+    assert (d["start"], d["end"], d["days_in_range"], d["threshold"]) == ("2026-10-05", "2026-11-01", 28, 40.0)
 
 
 @needs(T10)
@@ -185,7 +186,7 @@ def test_matrix_without_links(t10_nolinks: TestClient) -> None:
 @needs(T7, INV7)
 def test_t7_reproduces_skill_v1(t7_nolinks: TestClient) -> None:
     """Q14: golden T7 tính KHÔNG liên kết IP → kiểm ở CSDL chưa seed liên kết."""
-    m = get(t7_nolinks, "/alerts", threshold=40)["matrix"]
+    m = get(t7_nolinks, "/alerts", threshold=40, start="2026-07-01", end="2026-07-30")["matrix"]  # = kỳ file T7
     assert mapped_totals(m) == (15, 44, 18) and m["mapped_total"] == 77
     assert owner_row(m, "dungha7") == (8, 21, 14) and owner_row(m, "kientt6") == (7, 23, 4)
 

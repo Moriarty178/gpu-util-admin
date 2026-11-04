@@ -76,6 +76,10 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
 - Cờ VTNet: `gpu<10 và mem<10` (biên `<` chặt). Hiển thị song song, không thay luật vùng.
 - TB toàn bộ server theo ngày = mean đơn giản qua server có mẫu ngày đó (= sheet VTNet `HSSD theo ngay VTT`).
   TB 1 server = mean mẫu ngày trong khoảng (= `VTT_KPI_overview` khi khoảng = kỳ file). `end` tính trọn ngày.
+- **Khoảng xem** (người dùng chốt 04/11/2026, PLAN §14.8): mặc định = 4 tuần gần nhất có dữ liệu; khoảng vượt ngày có dữ liệu → cắt
+  về [ngày đầu, ngày cuối có dữ liệu] (`resolve_context`, `params.clamped`). File VTNet tuần hoặc tháng đều nhận: nhãn lô `YYYY-Www`
+  (≤ 10 ngày) / `YYYY-MM`. Báo cáo tháng chỉ xuất khi dữ liệu đã tới hết tháng (409 `month_incomplete`). Test golden dùng khoảng
+  kỳ file tường minh, không dựa vào mặc định.
 - Khóa server là **IP** (không dùng STT). Ghép inventory↔VTNet qua `COALESCE(ip_link.vtnet_ip, inventory.ip)` (= `gpu_core.apply_ip_links`).
   9 liên kết RTX6000 seed từ `backend/seeds/ip_links.csv` (ghép theo IP tăng dần, người dùng đã chốt) với `pair_confirmed=false` — code không tự đổi.
 - Mẫu tải append-only theo lô; giá trị hiệu lực = lô committed mới nhất (VIEW `util_effective`). Không UPDATE/DELETE mẫu cũ để "sửa số".

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
 
@@ -41,12 +41,12 @@ def compare(
 @router.get(
     "/trend/zones",
     response_model=TrendOut,
-    summary="Số server / số card mỗi vùng theo tháng (mỗi tháng tính TB riêng) + TB GPU/VRAM tháng",
-    description="Mặc định = toàn bộ dữ liệu đã nhập; tối đa 36 tháng.",
+    summary="Số server / số card mỗi vùng theo tháng hoặc tuần (mỗi kỳ tính TB riêng) + TB GPU/VRAM của kỳ",
+    description="Mặc định = toàn bộ dữ liệu đã nhập, theo tháng; tối đa 36 tháng / 156 tuần (tuần ISO thứ 2 → CN).",
     responses=errors(422),
 )
 def trend(
     s: SessionDep, cache: CacheDep, f: FiltersDep, scope: ScopeDep, start: D = None, end: D = None,
-    threshold: Threshold = None,
+    threshold: Threshold = None, granularity: Annotated[Literal["month", "week"], Query()] = "month",
 ) -> TrendOut:  # fmt: skip
-    return TrendOut.model_validate(svc.trend_zones(s, cache, start, end, threshold, f, scope))
+    return TrendOut.model_validate(svc.trend_zones(s, cache, start, end, threshold, f, scope, granularity))

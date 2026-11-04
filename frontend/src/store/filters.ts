@@ -84,13 +84,15 @@ export function hasNarrowing(f: GlobalFilters): boolean {
   return LIST_KEYS.some((k) => f[k].length > 0)
 }
 
-export type Preset = 'this_month' | 'last_month' | '3m' | '6m' | '12m'
+export type Preset = '4w' | 'this_month' | 'last_month' | '3m' | '6m' | '12m'
 
 /** Khoảng preset (YYYY-MM-DD, end tính trọn ngày). `anchor` = ngày tham chiếu (hôm nay hoặc ngày cuối có số liệu). */
 export function presetRange(preset: Preset, anchor: string): [string, string] {
   const a = dayjs(anchor)
   const f = (d: dayjs.Dayjs) => d.format('YYYY-MM-DD')
   switch (preset) {
+    case '4w': // = khoảng mặc định của backend (DEFAULT_WINDOW_DAYS = 28) khi anchor = ngày cuối có dữ liệu
+      return [f(a.subtract(27, 'day')), f(a)]
     case 'this_month':
       return [f(a.startOf('month')), f(a.endOf('month'))]
     case 'last_month': {
@@ -104,6 +106,19 @@ export function presetRange(preset: Preset, anchor: string): [string, string] {
     case '12m':
       return [f(a.subtract(12, 'month').add(1, 'day')), f(a)]
   }
+}
+
+/** Khoảng chọn vượt ra ngoài [lo, hi] (ngày có dữ liệu) nhưng vẫn giao nhau → khoảng sau khi cắt (backend tính trên
+ * khoảng này — PLAN §14.8); không vượt / không giao / thiếu dữ liệu → null. Chỉ để hiển thị ghi chú. */
+export function clampToData(
+  start: string | undefined,
+  end: string | undefined,
+  lo: string | null | undefined,
+  hi: string | null | undefined,
+): [string, string] | null {
+  if (!start || !end || !lo || !hi || start > hi || end < lo) return null
+  if (start >= lo && end <= hi) return null
+  return [start < lo ? lo : start, end > hi ? hi : end]
 }
 
 /** Chuỗi danh sách trong URL: "danger,warning" ⇄ ['danger','warning'] (chỉ giữ giá trị hợp lệ). */

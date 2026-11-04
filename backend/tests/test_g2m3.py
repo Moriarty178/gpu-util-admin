@@ -209,7 +209,39 @@ def test_trend_zones_by_month(data: Settings) -> None:
             "warning": 1,
             "safe": 1,
         }  # .7 Nguy hiểm, .4 Cảnh báo, .3 An toàn
-        assert c.get("/api/v1/trend/zones", params={"start": "2020-01-01", "end": "2026-12-31"}).status_code == 422
+        r = j(c.get("/api/v1/trend/zones", params={"start": "2020-01-01", "end": "2026-12-31"}))
+        assert [m["month"] for m in r["months"]] == ["2026-10", "2026-11"]  # khoảng vượt dữ liệu → cắt về 01/10–05/11
+
+
+def test_trend_zones_limit(data: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services import compare_service
+
+    monkeypatch.setattr(compare_service, "MAX_TREND_MONTHS", 1)
+    with app_client(data) as c:
+        assert c.get("/api/v1/trend/zones").status_code == 422  # 2 tháng dữ liệu > giới hạn 1
+
+
+def test_trend_zones_by_week(data: Settings) -> None:
+    """Tuần ISO (thứ 2 → CN), cắt theo dữ liệu 01/10–05/11. Tính tay (T = 40):
+    W40 01–04/10: .6 gpu 0 → Nguy hiểm → 2/2/2 · W41 chỉ 05/10: .6 gpu 100 / mem 30 → Cảnh báo → 1/3/2 ·
+    W42, W43 không có dữ liệu · W44 26/10–01/11 = ngày 01/11 của T11: .2 10/10, .6 0/30, .7 30/30 Nguy hiểm → 3/1/2 ·
+    W45 02–05/11: .6 gpu TB 25 → vẫn Nguy hiểm → 3/1/2."""
+    with app_client(data) as c:
+        r = j(c.get("/api/v1/trend/zones", params={"threshold": 40, "granularity": "week"}))
+        assert r["granularity"] == "week"
+        got = [(m["period"], m["start"], m["end"], m["n_days"], m["n_servers"]) for m in r["months"]]
+        assert got == [
+            ("2026-W40", "2026-10-01", "2026-10-04", 4, 6),
+            ("2026-W41", "2026-10-05", "2026-10-11", 7, 6),
+            ("2026-W42", "2026-10-12", "2026-10-18", 7, 0),
+            ("2026-W43", "2026-10-19", "2026-10-25", 7, 0),
+            ("2026-W44", "2026-10-26", "2026-11-01", 7, 6),
+            ("2026-W45", "2026-11-02", "2026-11-05", 4, 6),
+        ]
+        z = [(m["zones"]["danger"], m["zones"]["warning"], m["zones"]["safe"]) for m in r["months"]]
+        assert z == [(2, 2, 2), (1, 3, 2), (0, 0, 0), (0, 0, 0), (3, 1, 2), (3, 1, 2)]
+        assert all(m["month"] is None for m in r["months"])
+        assert c.get("/api/v1/trend/zones", params={"granularity": "quarter"}).status_code == 422
 
 
 def test_multi_server_timeseries(data: Settings) -> None:

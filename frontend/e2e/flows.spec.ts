@@ -90,13 +90,20 @@ test.describe.serial('luồng admin → đầu mối', () => {
 test('admin: báo cáo tháng — sửa thông điệp rồi tải deck .pptx', async ({ page }) => {
   await login(page, ADMIN.user, ADMIN.pass)
   await page.getByRole('menuitem', { name: 'Báo cáo tháng' }).click()
-  await expect(page.locator('.ant-select-selection-item')).toHaveText('Tháng 11/2026') // mặc định = tháng mới nhất
-  await expect(page.getByText(/3\/\d+ server Nguy hiểm/)).toBeVisible() // thông điệp gợi ý từ số liệu
+  // dữ liệu E2E: 01–05/10 + 01–05/11 → tháng 10 đã qua (xuất được), tháng 11 chưa đủ → mặc định = tháng 10 (PLAN §14.8)
+  await expect(page.locator('.ant-select-selection-item')).toHaveText('Tháng 10/2026')
+  await expect(page.getByText(/2\/\d+ server Nguy hiểm/)).toBeVisible() // thông điệp gợi ý từ số liệu
+  await expect(page.getByText(/Tháng đã qua nhưng thiếu 26 ngày/)).toBeVisible() // 06–31/10 không có số liệu
   await page.locator('textarea').first().fill('Thông điệp E2E do admin viết.')
   await expect(page.getByText('Đã sửa so với gợi ý')).toBeVisible()
   const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Tải báo cáo (.pptx)' }).click()])
-  expect(file.suggestedFilename()).toBe('Bao_cao_GPU_thang_11_2026.pptx')
-  await expect(page.getByText('Đã tải Bao_cao_GPU_thang_11_2026.pptx')).toBeVisible()
+  expect(file.suggestedFilename()).toBe('Bao_cao_GPU_thang_10_2026.pptx')
+  await expect(page.getByText('Đã tải Bao_cao_GPU_thang_10_2026.pptx')).toBeVisible()
+  // tháng chưa đủ dữ liệu → cảnh báo + khóa nút tải
+  await page.locator('.ant-select-selector').first().click()
+  await page.getByTitle('Tháng 11/2026 — chưa đủ dữ liệu').click()
+  await expect(page.getByText(/Tháng 11\/2026 chưa đủ dữ liệu: mới có dữ liệu tới 05\/11\/2026 \(5\/30 ngày\)/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tải báo cáo (.pptx)' })).toBeDisabled()
 })
 
 test('admin: tải file có cảnh báo → xem trước + kiểm tra → phải xác nhận đã xem mới nhập', async ({ page }) => {
