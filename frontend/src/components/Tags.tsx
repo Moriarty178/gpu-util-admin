@@ -1,7 +1,16 @@
-import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, RollbackOutlined } from '@ant-design/icons'
 import { Tag, Tooltip } from 'antd'
 import type { ReactNode } from 'react'
-import { DATA_STATUS_META, type DataStatus, PATTERN_META, type Pattern, ZONE_META, type Zone } from '../lib/zones'
+import {
+  DATA_STATUS_META,
+  type DataStatus,
+  PATTERN_META,
+  type Pattern,
+  RECLAIM_META,
+  type ReclaimStatus,
+  ZONE_META,
+  type Zone,
+} from '../lib/zones'
 
 const ZONE_ICON: Record<Zone, ReactNode> = {
   danger: <CloseCircleOutlined />,
@@ -33,4 +42,15 @@ export function PatternTag({ pattern, short = true }: { pattern: Pattern | null 
 export function StatusTag({ status }: { status: DataStatus }) {
   const m = DATA_STATUS_META[status]
   return <Tag color={m.tag}>{m.label}</Tag>
+}
+
+/** Trạng thái thu hồi (Danh mục server): "VTNet đã thu hồi" kèm biểu tượng. */
+export function ReclaimTag({ status }: { status: ReclaimStatus | null | undefined }) {
+  if (!status) return <span>—</span>
+  const m = RECLAIM_META[status]
+  return (
+    <Tag color={m.tag} icon={status === 'reclaimed' ? <RollbackOutlined /> : undefined} style={{ marginInlineEnd: 0 }}>
+      {m.label}
+    </Tag>
+  )
 }

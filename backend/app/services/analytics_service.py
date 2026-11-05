@@ -233,7 +233,7 @@ def _build_bundle(s: Session, ctx: Context, raw: pd.DataFrame) -> Bundle:
         stats = g.server_stats(raw, ctx.start, ctx.end, ctx.threshold, params=ctx.params)
 
     links = inventory_repo.links_frame(s)
-    inv_raw = inventory_repo.current_frame(s)
+    inv_raw = inventory_repo.effective_frame(s)  # + sửa tay của admin (PLAN §14.11)
     try:
         inv = g.apply_ip_links(inv_raw, links)  # ip = IP phía VTNet, inventory_ip = IP trong file thống kê
     except ValueError as exc:
@@ -536,7 +536,7 @@ CATALOG_FIELDS = [
     "row_type", "data_status", "inventory_ip", "ip", "ip_linked", "pair_confirmed", "stt", "excel_row", "owner",
     "inventory_gpu_spec", "gpu_type", "gpu_count", "gpu_model", "gpu_count_mismatch", "model", "service",
     "input_load", "managed_by", "cluster", "zone", "pattern", "gpu_avg", "mem_avg", "days", "coverage",
-    "vtnet_low_load", "reclaimed",
+    "vtnet_low_load", "reclaimed", "reclaim_status", "edited",
 ]  # fmt: skip
 
 
@@ -571,6 +571,8 @@ def catalog(b: Bundle, f: Filters, scope: Scope, sort: str | None = None) -> dic
     if not vt_only.empty:
         vt_only["row_type"] = "vtnet_only"
         vt_only["data_status"] = "vtnet_only"
+        vt_only["reclaim_status"] = None  # không có dòng thống kê → không sửa được
+        vt_only["edited"] = None
     inv = filter_servers(apply_scope(inv, scope), f)
     vt_only = filter_servers(apply_scope(vt_only, scope), f) if not vt_only.empty else vt_only
     if sort:
@@ -586,6 +588,8 @@ def catalog(b: Bundle, f: Filters, scope: Scope, sort: str | None = None) -> dic
         "vtnet_only": len(vt_only),
         "linked": int(inv["ip_linked"].sum()),
         "gpu_count_mismatch": int(inv["gpu_count_mismatch"].sum()),
+        "reclaim_marked": int((inv["reclaim_status"] == "reclaimed").sum()),
+        "edited": int(sum(1 for e in inv["edited"] if e)),
     }
     rows = records(inv, CATALOG_FIELDS) + records(vt_only, CATALOG_FIELDS)
     return {"params": b.ctx.as_params(), "counts": counts, "items": rows}
@@ -594,6 +598,7 @@ def catalog(b: Bundle, f: Filters, scope: Scope, sort: str | None = None) -> dic
 INVENTORY_DETAIL = [
     "inventory_ip", "excel_row", "stt", "server_class", "config", "cpu", "ram", "disk", "hba", "inventory_gpu_spec",
     "inv_gpu_count", "inv_gpu_model", "serial", "owner", "model", "input_load", "service", "managed_by", "cluster",
+    "reclaim_status",
 ]  # fmt: skip
 
 

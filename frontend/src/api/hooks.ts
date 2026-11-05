@@ -7,6 +7,8 @@ import type {
   CatalogOut,
   CompareOut,
   GapsOut,
+  InventoryEditIn,
+  InventoryStateOut,
   IpLinkRow,
   MultiSeriesOut,
   NoteKind,
@@ -263,6 +265,18 @@ export function useSaveSettings() {
     mutationFn: (values: Record<string, number | string>) =>
       apiSend<{ items: SettingItem[] }>('PATCH', '/settings', { values }),
     onSettled: () => qc.invalidateQueries(),
+  })
+}
+
+/** Admin sửa tay 1 server trong Danh mục (PLAN §14.11) → mọi phân tích tính lại (đầu mối đổi → phạm vi đổi). */
+export function useEditInventory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ip, body }: { ip: string; body: InventoryEditIn }) =>
+      apiSend<InventoryStateOut>('PATCH', `/inventory/${ip}`, body),
+    onSettled: () => {
+      void qc.invalidateQueries() // tải lại nền — không bắt hộp thoại chờ mọi truy vấn xong
+    },
   })
 }
 

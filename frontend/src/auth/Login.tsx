@@ -3,7 +3,8 @@ import { Alert, Button, Card, Flex, Form, Input, Typography } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiPost, errorMessage } from '../api/client'
 import type { Me } from '../api/types'
-import { NAVY_DARK } from '../lib/theme'
+import { ViettelLogo } from '../components/Brand'
+import { CONTENT_BG, VIETTEL_RED } from '../lib/theme'
 import { vi } from '../lib/vi'
 import { startSession } from './session'
 
@@ -21,14 +22,15 @@ export default function Login({ setupRequired = false, expired = false }: { setu
   })
 
   return (
-    <Flex justify="center" align="center" style={{ minHeight: '100vh', background: '#f0f2f5', padding: 16 }}>
-      <Card style={{ width: 380, maxWidth: '100%' }} styles={{ header: { background: NAVY_DARK } }}
+    <Flex vertical justify="center" align="center" gap={20} style={{ minHeight: '100vh', background: CONTENT_BG, padding: 16 }}>
+      <ViettelLogo height={34} />
+      <Card style={{ width: 380, maxWidth: '100%' }} styles={{ header: { background: VIETTEL_RED } }}
         title={
           <div style={{ padding: '8px 0' }}>
-            <Typography.Text strong style={{ color: '#fff', fontSize: 18, display: 'block' }}>
-              {vi.appName}
+            <Typography.Text strong style={{ color: '#fff', fontSize: 20, display: 'block' }}>
+              {vi.brand}
             </Typography.Text>
-            <Typography.Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>{vi.appUnit}</Typography.Text>
+            <Typography.Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 }}>{vi.tagline}</Typography.Text>
           </div>
         }
       >

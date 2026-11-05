@@ -1,12 +1,13 @@
-import { Alert, Layout, Menu, Result, Space, Typography } from 'antd'
+import { Alert, Divider, Grid, Layout, Menu, Result, Space, Typography } from 'antd'
 import { Link, Route, Routes, useLocation } from 'react-router'
 import { canAccess, isOwnScope } from './auth/access'
 import { useAuth } from './auth/session'
 import ChangePassword from './auth/ChangePassword'
 import { UserMenu } from './auth/UserMenu'
 import { ApiStatus } from './components/ApiStatus'
+import { BrandBlock, ViettelLogo } from './components/Brand'
 import { FilterBar } from './components/FilterBar'
-import { NAVY_DARK } from './lib/theme'
+import { HEADER_H, SIDER_W } from './lib/theme'
 import { vi } from './lib/vi'
 import NotFound from './pages/NotFound'
 import ServerDetail from './pages/ServerDetail'
@@ -22,6 +23,7 @@ export default function App() {
   const { pathname, search } = useLocation()
   const keep = globalSearch(new URLSearchParams(search)) // giữ bộ lọc toàn cục khi chuyển trang
   const active = activeRoute(pathname)
+  const screens = Grid.useBreakpoint() // màn hẹp: thu khối tên, ẩn dòng phụ (không tràn ngang)
   const items = navRoutes.filter((r) => canAccess(r.key, me.role)).map((r) => ({
     key: r.key,
     icon: r.icon,
@@ -30,30 +32,54 @@ export default function App() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Sider width={220} breakpoint="lg" collapsedWidth={0}>
-        <div style={{ padding: '16px 20px', background: NAVY_DARK }}>
-          <Typography.Text strong style={{ color: '#fff', fontSize: 16, display: 'block' }}>
-            {vi.appName}
-          </Typography.Text>
-          <Typography.Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>{vi.appUnit}</Typography.Text>
-        </div>
-        <Menu theme="dark" mode="inline" selectedKeys={active ? [active.key] : []} items={items} />
-      </Layout.Sider>
+      {/* Phong cách Viettel (ảnh tham khảo VOffice): tên đỏ cắt chéo góc trái, logo, header trắng; sidebar tối bên dưới */}
+      <Layout.Header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          paddingRight: 20,
+          borderBottom: '1px solid #d9d9d9',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          lineHeight: 'normal',
+        }}
+      >
+        <BrandBlock width={screens.md ? SIDER_W + 30 : 160} />
+        {screens.sm && <ViettelLogo height={22} />}
+        {screens.lg && (
+          <>
+            <Divider type="vertical" style={{ height: 22, margin: '0 2px' }} />
+            <Typography.Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+              {vi.tagline}
+            </Typography.Text>
+          </>
+        )}
+        <div style={{ flex: 1 }} />
+        {screens.md && <ApiStatus />}
+        <UserMenu />
+      </Layout.Header>
       <Layout>
-        <Layout.Header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 12,
-            padding: '0 24px',
-            borderBottom: '1px solid #f0f0f0',
-          }}
+        {/* Sidebar cố định dưới header khi cuộn trang; menu dài hơn màn hình thì tự cuộn bên trong
+            (cuộn ở div con để không cắt nút mở sidebar của màn hẹp nằm ngoài mép Sider) */}
+        <Layout.Sider
+          width={SIDER_W}
+          breakpoint="lg"
+          collapsedWidth={0}
+          style={{ position: 'sticky', top: HEADER_H, height: `calc(100vh - ${HEADER_H}px)`, zIndex: 9 }}
         >
-          <ApiStatus />
-          <UserMenu />
-        </Layout.Header>
-        <Layout.Content style={{ padding: 24 }}>
+          <div style={{ height: '100%', overflowY: 'auto' }}>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={active ? [active.key] : []}
+              items={items}
+              style={{ textTransform: 'uppercase', fontWeight: 600, fontSize: 13, borderInlineEnd: 0, paddingTop: 4 }}
+            />
+          </div>
+        </Layout.Sider>
+        <Layout.Content style={{ padding: 20 }}>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {isOwnScope(me) && active?.filters && (
               <Alert

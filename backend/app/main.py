@@ -24,7 +24,7 @@ from app.db.session import make_engine
 from app.deps import require_admin, require_user
 from app.errors import install_error_handlers
 from app.logging_setup import setup_logging
-from app.routers import alerts, auth, compare, fleet, gaps, imports, meta, ops, reports, servers, users
+from app.routers import alerts, auth, compare, fleet, gaps, imports, inventory, meta, ops, reports, servers, users
 from app.services.analytics_service import AnalyticsCache, warm_up
 from app.services.auth_service import user_count
 from app.services.import_service import discard_stale_staged
@@ -93,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(compare.router, prefix=API_PREFIX, dependencies=user)
     app.include_router(reports.router, prefix=API_PREFIX, dependencies=user)
     app.include_router(ops.router, prefix=API_PREFIX, dependencies=admin)
+    app.include_router(inventory.router, prefix=API_PREFIX, dependencies=admin)  # sửa tay danh mục (PLAN §14.11)
 
     @app.get(f"{API_PREFIX}/openapi.json", include_in_schema=False, dependencies=user)
     def openapi_spec() -> JSONResponse:

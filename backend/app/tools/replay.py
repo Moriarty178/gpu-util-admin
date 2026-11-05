@@ -3,7 +3,7 @@
 Không chép bảng mẫu tải: mỗi lô `committed` / `rolled_back` của nguồn được nhập lại từ file gốc `<sha256>.xlsx`
 qua đúng luồng nhập của app (stage → commit → [rollback]), giữ nguyên người làm và mốc thời gian gốc → VIEW
 `util_effective` / `inventory_current` / `reclaim_current` ở đích giống hệt nguồn. Sau đó chép `ip_link`, `app_setting`
-và (GĐ2) `app_user`, `audit_log`, `server_note` — id do đích tự cấp; tài khoản trùng tên đã có ở đích được giữ nguyên.
+và (GĐ2) `app_user`, `audit_log`, `server_note`, `inventory_override` (sửa tay danh mục) — id do đích tự cấp; tài khoản trùng tên đã có ở đích được giữ nguyên.
 Lô `staged` / `failed` / `discarded` không mang dữ liệu hiệu lực → bỏ qua (ghi trong báo cáo).
 
 Chạy (Git Bash, gốc repo): `bash scripts/task.sh replay --target postgresql+psycopg://…` — xem `--help`.
@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings, resolve_path
 from app.db.migrate import is_migrated, upgrade
-from app.db.models import AppSetting, AppUser, AuditLog, ImportBatch, IpLink, ServerNote
+from app.db.models import AppSetting, AppUser, AuditLog, ImportBatch, InventoryOverride, IpLink, ServerNote
 from app.db.seed import seed
 from app.db.session import make_engine, resolve_database_url
 from app.db.views import inventory_current, reclaim_current, util_effective
@@ -55,6 +55,7 @@ class ReplayReport:
     users_kept: list[str] = field(default_factory=list)  # trùng tên với tài khoản đã có ở đích → giữ bản đích
     audit: int = 0
     notes: int = 0
+    edits: int = 0
 
     def lines(self) -> list[str]:
         out = [
@@ -64,7 +65,7 @@ class ReplayReport:
         if self.skipped:
             out.append("Bỏ qua (không có dữ liệu hiệu lực): " + ", ".join(f"{k}: {v}" for k, v in self.skipped.items()))
         out.append(f"Đã chép {self.links} liên kết IP, {self.settings} cài đặt, {self.users} tài khoản, "
-                   f"{self.audit} dòng nhật ký, {self.notes} ghi chú.")  # fmt: skip
+                   f"{self.audit} dòng nhật ký, {self.notes} ghi chú, {self.edits} server sửa tay danh mục.")  # fmt: skip
         if self.users_kept:
             out.append("Giữ tài khoản đã có ở đích (không chép đè): " + ", ".join(self.users_kept))
         return out
@@ -127,6 +128,12 @@ def replay(source: Engine, target: Engine, *, source_uploads: Path, target_setti
             dst.execute(insert(AppSetting), settings)
         report.links, report.settings = len(links), len(settings)
 
+        # Sửa tay danh mục (PLAN §14.11): chép sau khi phát lại lô (lúc nhập lại file thống kê ở đích chưa có sửa tay)
+        edits = [_row(x, InventoryOverride) for x in src.scalars(select(InventoryOverride))]
+        if edits:
+            dst.execute(insert(InventoryOverride), edits)
+        report.edits = len(edits)
+
         # Tài khoản, nhật ký, ghi chú (GĐ2): không giữ id (đích tự cấp — sequence PG không lệch)
         have = set(dst.scalars(select(AppUser.username)))
         users = []
@@ -176,6 +183,7 @@ def _plain(s: Session, model: Any, keys: Sequence[str]) -> list[tuple[Any, ...]]
 USER_KEYS = ["username", "role", "owner_key", "data_scope", "active", "full_name"]
 NOTE_KEYS = ["ip", "kind", "text", "valid_until", "created_by", "created_at", "deleted_at"]
 AUDIT_KEYS = ["at", "username", "action", "target"]
+EDIT_KEYS = [c.key for c in InventoryOverride.__mapper__.column_attrs]
 
 
 def verify(source: Engine, target: Engine) -> list[str]:
@@ -201,6 +209,7 @@ def verify(source: Engine, target: Engine) -> list[str]:
                 [r for r in _plain(b, AppUser, USER_KEYS) if r[0] in src_users],
             ),
             ("server_note", _plain(a, ServerNote, NOTE_KEYS), _plain(b, ServerNote, NOTE_KEYS)),
+            ("inventory_override", _plain(a, InventoryOverride, EDIT_KEYS), _plain(b, InventoryOverride, EDIT_KEYS)),
         ]
         # nhật ký: mọi dòng của nguồn phải có ở đích (đích có thể có thêm, vd create-admin trước khi phát lại)
         missing = Counter(_plain(a, AuditLog, AUDIT_KEYS)) - Counter(_plain(b, AuditLog, AUDIT_KEYS))
@@ -263,7 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("KHÔNG KHỚP:\n  " + "\n  ".join(diffs), file=sys.stderr)
             return 1
         print("Kiểm: nguồn = đích (số lô, util_effective, inventory_current, reclaim_current, ip_link, app_setting, "
-              "app_user, server_note, audit_log).")  # fmt: skip
+              "app_user, server_note, audit_log, inventory_override).")  # fmt: skip
         return 0
     finally:
         source.dispose()

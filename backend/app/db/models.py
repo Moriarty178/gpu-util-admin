@@ -235,3 +235,30 @@ class ServerNote(Base):
     created_by: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+# ------------------------------------------------------------------ Sửa tay danh mục server (migration 0003, PLAN §14.11)
+
+RECLAIM_STATUSES = ("in_use", "reclaimed")
+
+
+class InventoryOverride(Base):
+    """Admin sửa tay thông tin 1 server trong danh mục (khóa = IP trong file thống kê). Đè lên lô thống kê hiện hành khi
+    hiển thị, kể cả sau khi nhập file thống kê mới (người dùng chốt 05/11/2026). Cột NULL = theo file; '' = để trống.
+    `reclaim_status` NULL = 'in_use' (mặc định "Đang sử dụng"). Chỉ là thông tin — không đổi phép tính tải."""
+
+    __tablename__ = "inventory_override"
+    __table_args__ = (
+        CheckConstraint(f"reclaim_status IS NULL OR {_in('reclaim_status', RECLAIM_STATUSES)}", name="reclaim_status"),
+    )
+
+    inventory_ip: Mapped[str] = mapped_column(String(15), primary_key=True)
+    owner: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(Text)
+    input_load: Mapped[str | None] = mapped_column(Text)
+    service: Mapped[str | None] = mapped_column(Text)
+    managed_by: Mapped[str | None] = mapped_column(Text)
+    cluster: Mapped[str | None] = mapped_column(Text)
+    reclaim_status: Mapped[str | None] = mapped_column(String(16))
+    updated_by: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime)

@@ -352,6 +352,9 @@ của proxy để nginx lấy IP thật từ `X-Forwarded-For` của proxy đó 
 - [ ] Chạy `replay` dữ liệu thật T7→T10 trong Docker (image đã build lại 04/11/2026) → kiểm đủ bảng mục 7, tải deck .pptx qua nginx.
 - [ ] Chạy trên VM Linux thật (chưa từng làm).
 - [ ] Service `backup` tự chạy đúng giờ `BACKUP_AT` (mới kiểm chế độ `now`).
+- 05/11/2026 — **Sửa tay danh mục server** (PLAN §14.11): migration **0003** chỉ thêm bảng `inventory_override` (không đụng bảng
+  / view cũ) — `setup`/`run`/`dev` và container api tự `migrate` khi khởi động, không cần thao tác dữ liệu. `replay` chép và kiểm
+  bảng này (sửa tay ở native theo sang server). Không thêm thư viện, image không đổi ngoài code.
 - [ ] HTTPS với **chứng chỉ thật** của TTCN trên VM (cấu hình đã có — mục 8; mới thử bằng chứng chỉ tự ký trên Docker Desktop).
 - [ ] Bản native chưa có tài khoản admin (`bash scripts/task.sh create-admin`, chạy trong Git Bash) — nếu tạo ở native trước
       khi `replay` thì tài khoản được chép sang server; nếu không, tạo trên server (mục 7).

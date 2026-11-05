@@ -2,6 +2,7 @@ import { DownOutlined, KeyOutlined, LogoutOutlined, UserOutlined } from '@ant-de
 import { Button, Dropdown, Space, Tag } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
+import { INFO } from '../lib/theme'
 import { vi } from '../lib/vi'
 import { displayName } from './access'
 import { logout, useAuth } from './session'
@@ -26,7 +27,7 @@ export function UserMenu() {
         <Space size={6}>
           <UserOutlined />
           {displayName(me)}
-          <Tag color={me.role === 'admin' ? 'geekblue' : me.role === 'owner' ? 'cyan' : 'default'} style={{ margin: 0 }}>
+          <Tag color={me.role === 'admin' ? INFO : me.role === 'owner' ? 'cyan' : 'default'} style={{ margin: 0 }}>
             {vi.role[me.role]}
             {me.role === 'owner' && me.owner_key ? ` · ${me.owner_key}` : ''}
           </Tag>

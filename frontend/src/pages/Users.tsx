@@ -8,9 +8,10 @@ import type { DataScope, Role, User, UserInput, UserWithPassword } from '../api/
 import { useAuth } from '../auth/session'
 import { ErrorState, Loading } from '../components/States'
 import { fmtDateTimeUtc } from '../lib/format'
+import { INFO } from '../lib/theme'
 import { vi } from '../lib/vi'
 
-const ROLE_COLOR: Record<Role, string> = { admin: 'geekblue', owner: 'cyan', viewer: 'default' }
+const ROLE_COLOR: Record<Role, string> = { admin: INFO, owner: 'cyan', viewer: 'default' }
 
 interface UserForm {
   username?: string

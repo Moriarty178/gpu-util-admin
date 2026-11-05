@@ -1,5 +1,5 @@
 // Kiểu dữ liệu API (khớp backend/app/schemas). Số % để nguyên, UI tự định dạng.
-import type { DataStatus, Pattern, Zone, ZoneMetric } from '../lib/zones'
+import type { DataStatus, Pattern, ReclaimStatus, Zone, ZoneMetric } from '../lib/zones'
 
 export interface AnalyticsParams {
   start: string
@@ -137,6 +137,26 @@ export interface CatalogItem {
   coverage: number | null
   vtnet_low_load: boolean | null
   reclaimed: boolean
+  /** Admin đặt (mặc định in_use); null với dòng VTNet-only */
+  reclaim_status: ReclaimStatus | null
+  /** Ô admin sửa tay khác file: cột → giá trị theo file; null với dòng VTNet-only */
+  edited: Partial<Record<EditableField, string | null>> | null
+}
+
+export type EditableField = 'owner' | 'model' | 'input_load' | 'service' | 'managed_by' | 'cluster'
+export const EDITABLE_FIELDS: EditableField[] = ['owner', 'model', 'input_load', 'service', 'managed_by', 'cluster']
+
+/** PATCH /inventory/{ip}: chỉ gửi khóa cần đổi; null = về theo file; '' = để trống */
+export type InventoryEditIn = Partial<Record<EditableField, string | null>> & { reclaim_status?: ReclaimStatus }
+
+export interface InventoryStateOut {
+  inventory_ip: string
+  values: Record<EditableField, string | null>
+  file_values: Record<EditableField, string | null>
+  edited: Partial<Record<EditableField, string | null>>
+  reclaim_status: ReclaimStatus
+  updated_by: string | null
+  updated_at: string | null
 }
 
 export interface CatalogOut {
@@ -149,6 +169,8 @@ export interface CatalogOut {
     vtnet_only: number
     linked: number
     gpu_count_mismatch: number
+    reclaim_marked: number
+    edited: number
   }
   items: CatalogItem[]
 }

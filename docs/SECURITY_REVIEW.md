@@ -23,6 +23,7 @@ Mỗi mục: kiểm thế nào → kết quả. ✅ đạt · 🔧 đã sửa tr
 |---|---|---|
 | Mặc định chặn: mọi route API cần đăng nhập trừ `/healthz`, `/auth/login`, `/auth/logout` | ma trận mọi route (lấy từ OpenAPI) × 6 loại người dùng — `test_permission_matrix` | ✅ 38 route |
 | Phạm vi đầu mối áp ở service (`Scope`), ngoài phạm vi → 404 (không lộ server tồn tại) | `test_permissions.py`, `test_g2m3.py`, E2E | ✅ |
+| Sửa tay danh mục `PATCH /inventory/{ip}` (05/11/2026): chỉ admin (`require_admin` ở main.py), chặn cột lạ (`extra=forbid`), giới hạn độ dài, nhật ký `inventory_edited` (trước/sau); đổi đầu mối → phạm vi đầu mối đổi ngay | ma trận quyền, `test_inventory_edit.py` | ✅ |
 | Xuất Excel của đầu mối không chứa dòng / sheet ngoài phạm vi | `test_owner_own_sees_only_own_servers` | ✅ |
 | **Đặc tả `/api/v1/openapi.json` công khai** (lộ cấu trúc API) | `curl` không cookie | 🔧 cần đăng nhập (`test_security_headers_and_openapi_requires_login`) |
 | `/docs`, `/redoc` (Swagger tải CDN) | — | ✅ đã tắt (Q17) |

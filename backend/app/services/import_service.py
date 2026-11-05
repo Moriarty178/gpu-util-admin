@@ -31,6 +31,7 @@ from app.repo import batch_repo, inventory_repo, settings_repo, util_repo
 from app.repo.convert import jsonable, py
 from app.scope import CurrentUser
 from app.services import import_checks as checks
+from app.services import inventory_service
 from app.services.analytics_service import rule_params
 from gpu_core.parsing import INVENTORY_SHEET, RAW_SHEET_NAMES, norm_key
 
@@ -296,6 +297,7 @@ def _stage_inventory(s: Session, batch: ImportBatch, path: Path, sheets: list[st
         row["extra"] = jsonable({str(c): r.get(c) for c in extra_cols if py(r.get(c)) is not None})
         rows.append(row)
 
+    conflicts = inventory_service.import_conflicts(s, rows)  # sửa tay trên web khác file mới (PLAN §14.11)
     owners = Counter(str(r["owner"] or "(trống)") for r in rows)
     managed = Counter(str(r["managed_by"] or "(trống)") for r in rows)
     batch.schema_version = "inventory_v1"
@@ -309,11 +311,15 @@ def _stage_inventory(s: Session, batch: ImportBatch, path: Path, sheets: list[st
             "added_ips": sorted(ips - current) if prev else [],
             "removed_ips": sorted(current - ips) if prev else [],
             "linked_ips": len(ips & linked),
+            "edit_conflicts": conflicts,
         }
     )
     batch.validation = jsonable(
         {
-            "warnings": inv.attrs.get("warnings", []),
+            "warnings": [
+                *inv.attrs.get("warnings", []),
+                *([inventory_service.conflict_warning(conflicts)] if conflicts else []),
+            ],
             "invalid_ip_rows": inv.attrs.get("invalid_ip_rows", []),
             "extra_columns": extra_cols,
             "sheet": inv.attrs.get("sheet"),

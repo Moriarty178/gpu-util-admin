@@ -2,6 +2,8 @@
 export const vi = {
   appName: 'GPU Util Admin',
   appUnit: 'TTCN-VTT',
+  brand: 'GPU Util', // khối tên nền đỏ góc trên bên trái
+  tagline: 'Theo dõi tải GPU · TTCN-VTT',
   nav: {
     dashboard: 'Tổng quan',
     alerts: 'Cảnh báo',
@@ -177,7 +179,24 @@ export const vi = {
       gpuAvg: 'GPU TB',
       memAvg: 'VRAM TB',
       status: 'Trạng thái số liệu',
+      reclaim: 'Trạng thái thu hồi',
+      action: '',
     },
+    allReclaim: 'Mọi trạng thái thu hồi',
+    reclaimMarked: (n: number) => `VTNet đã thu hồi: ${n}`,
+    editedCount: (n: number) => `Đã sửa tay: ${n}`,
+    edit: 'Sửa',
+    editTitle: (ip: string) => `Sửa thông tin server ${ip}`,
+    editHint:
+      'Giá trị sửa tay được giữ cả khi nhập file thống kê mới (màn xem trước nhập sẽ báo ô nào khác file). ' +
+      'Chỉ là thông tin — không đổi phép tính tải. Đổi đầu mối → phạm vi xem của tài khoản đầu mối đổi theo ngay.',
+    fileValue: (v: string | null) => `Theo file: ${v || '(trống)'}`,
+    resetToFile: 'Về theo file',
+    editedTip: (file: string | null) => `Sửa tay trên web — theo file: ${file || '(trống)'}`,
+    saved: (ip: string) => `Đã lưu thông tin server ${ip}`,
+    reclaimSaved: (ip: string, label: string) => `${ip}: ${label}`,
+    save: 'Lưu',
+    cancel: 'Hủy',
   },
   imports: {
     title: 'Nhập dữ liệu',

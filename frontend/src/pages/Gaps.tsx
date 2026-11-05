@@ -10,6 +10,7 @@ import { useAuth } from '../auth/session'
 import { ErrorState, Loading } from '../components/States'
 import { ZoneTag } from '../components/Tags'
 import { fmtDateTimeUtc, fmtPct } from '../lib/format'
+import { VIETTEL_RED } from '../lib/theme'
 import { vi } from '../lib/vi'
 import { globalSearch } from '../store/filters'
 import { useFilters, usePageParam } from '../store/useFilters'
@@ -249,7 +250,7 @@ export default function Gaps() {
   const label = (text: string, n: number) => (
     <Space size={6}>
       {text}
-      <Badge count={n} showZero color={n ? '#1f3a68' : '#d9d9d9'} overflowCount={999} />
+      <Badge count={n} showZero color={n ? VIETTEL_RED : '#d9d9d9'} overflowCount={999} />
     </Space>
   )
 

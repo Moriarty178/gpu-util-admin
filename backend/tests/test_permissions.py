@@ -132,7 +132,7 @@ def test_owner_all_and_viewer_see_everything(loaded: Settings) -> None:
 
 PUBLIC = {("GET", "/api/v1/healthz"), ("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/logout")}
 SESSION = {("GET", "/api/v1/auth/me"), ("POST", "/api/v1/auth/change-password")}  # cho cả tài khoản phải đổi mật khẩu
-ADMIN_PREFIXES = ("/api/v1/imports", "/api/v1/users", "/api/v1/settings", "/api/v1/audit")
+ADMIN_PREFIXES = ("/api/v1/imports", "/api/v1/users", "/api/v1/settings", "/api/v1/audit", "/api/v1/inventory")
 PERSONAS = ["anon", "must_change", "admin", "owner_own", "owner_all", "viewer"]
 
 

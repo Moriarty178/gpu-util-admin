@@ -157,6 +157,10 @@ class CatalogItem(BaseModel):
     coverage: float | None = None
     vtnet_low_load: bool | None = None
     reclaimed: bool = False
+    reclaim_status: Literal["in_use", "reclaimed"] | None = Field(
+        None, description="Trạng thái thu hồi (admin đặt; mặc định in_use = Đang sử dụng). VTNet-only: null"
+    )
+    edited: dict[str, str | None] | None = Field(None, description="Ô admin sửa tay khác file: cột → giá trị theo file")
 
 
 class CatalogCounts(BaseModel):
@@ -167,6 +171,8 @@ class CatalogCounts(BaseModel):
     vtnet_only: int
     linked: int
     gpu_count_mismatch: int
+    reclaim_marked: int = Field(0, description="Số dòng admin đánh dấu 'VTNet đã thu hồi'")
+    edited: int = Field(0, description="Số dòng có ô sửa tay khác file")
 
 
 class CatalogOut(BaseModel):

@@ -85,7 +85,7 @@ export function FilterBar() {
           <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
         </Tooltip>
         {!f.start && def?.start && def.end && (
-          <Tag color="blue">{vi.filters.viewingDefault(fmtRange(def.start, def.end))}</Tag>
+          <Tag>{vi.filters.viewingDefault(fmtRange(def.start, def.end))}</Tag>
         )}
         {clamped && <Tag color="gold">{vi.filters.clamped(fmtRange(clamped[0], clamped[1]))}</Tag>}
         <Select

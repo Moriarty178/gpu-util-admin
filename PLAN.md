@@ -409,7 +409,7 @@ Ví dụ `GET /alerts?start=2026-10-01&end=2026-11-01&threshold=40&zones=danger`
 
 ### 8.0 Nguyên tắc chung
 - **Tiếng Việt**; ngày `dd/mm/yyyy`; số `vi-VN` (`38,7%`); giờ VN. Tên biến/code tiếng Anh.
-- **Màu**: primary **navy**; **đỏ chỉ dành cho "Nguy hiểm"**. Vùng: An toàn xanh lá, Cảnh báo cam, Nguy hiểm đỏ — luôn kèm **chữ/biểu tượng**.
+- **Màu**: ~~primary navy; đỏ chỉ dành cho "Nguy hiểm"~~ → từ 05/11/2026 **phong cách Viettel** (§14.10). Vùng: An toàn xanh lá, Cảnh báo cam, Nguy hiểm đỏ — luôn kèm **chữ/biểu tượng**.
   GPU% và VRAM% 2 màu trung tính phân biệt rõ; ngưỡng nét đứt.
 - **Bộ lọc toàn cục** (thanh trên cùng, giữ khi chuyển trang, đồng bộ URL): `[Khoảng ngày + preset] [Đầu mối] [Loại GPU] [Cụm] [Quản lý bằng] [Ngưỡng T]`.
 - Biểu đồ: dataZoom, tooltip đủ số + `n_servers`, markLine **T** (nét đứt) và **10% VTNet** (chấm), nút tải PNG.
@@ -850,3 +850,36 @@ Golden **độc lập**: chỉ so với (a) sheet VTNet tự tính, (b) kết qu
    - Nghiệm thu: `test_gpu_core` (+9, 55 → 64: ví dụ 15/75, 60/20, biên 40/40; server_stats tổng hợp tính tay — chỉ compute Nguy hiểm .3 .5 .6,
      chỉ memory .4 .5 .6; .6 ngày nguy hiểm 4/4/5), `test_zone_metric.py` (5: ghi đè khi xem, cài đặt + kiểm hợp lệ + nhật ký, xem trước
      khi nhập, so sánh / xu hướng, Excel), `test_reports` (+1: chỉ compute T8/T9/T10 Nguy hiểm 1/3/3, chuỗi .5 ≥3 tháng).
+10. **Giao diện phong cách Viettel** (người dùng yêu cầu 05/11/2026, ảnh tham khảo VOffice `anh_ui_tham_khao.png` + `viettel-logo.png`)
+   — **[x] làm 05/11/2026**. Header trắng trên cùng: khối "GPU Util" nền đỏ `#ee0033` cạnh phải cắt chéo (rộng = sidebar), logo Viettel,
+   dòng "Theo dõi tải GPU · TTCN-VTT"; sidebar `#241d1e`, mục menu chữ trắng in hoa, mục đang chọn nền đỏ, hover `#3a3132`; nền nội
+   dung `#e6e6e6`. AntD `colorPrimary`/`colorLink` = đỏ Viettel (nút, tab, checkbox, slider, link, hover); thông báo info = navy
+   `#1f2433` trên nền xám sáng (không xanh dương); nhãn vai trò admin navy; favicon đỏ; trang đăng nhập đầu thẻ đỏ + logo. Màn hẹp:
+   thu khối tên, ẩn dòng phụ/logo/trạng thái API (header không tràn ở 375 px). Bỏ quy ước cũ "đỏ chỉ cho Nguy hiểm" — màu vùng giữ
+   nguyên (`lib/zones.ts`), luôn có chữ + biểu tượng. Biểu đồ giữ màu chuỗi navy/teal. Logo: `frontend/src/assets/viettel-logo.png`
+   (Vite đóng gói, không tải ngoài; CSP `img-src 'self'` đã đủ). Kiểm: lint, Vitest 47, E2E 6/6, xem tay Tổng quan / Cảnh báo / Cài
+   đặt / đăng nhập ở 1366 px và 375 px. Bổ sung cùng ngày: `src/index.css` bỏ lề 8px mặc định của `body` (header + sidebar
+   sát mép); số đếm tab Đối soát đỏ; sidebar `position: sticky` ngay dưới header (cao `100vh − 52px`, menu dài tự cuộn trong
+   div con để không cắt nút mở sidebar ở màn hẹp).
+11. **Sửa tay danh mục server + "Trạng thái thu hồi"** (người dùng yêu cầu 05/11/2026: server bị thu hồi / đổi đầu mối / đổi
+   model, dịch vụ, CCU… mà file thống kê chưa cập nhật) — **[x] làm 05/11/2026**. Người dùng chốt: (1) **giữ sửa tay** cả khi nhập
+   file thống kê mới — màn xem trước nhập liệt kê ô file mới khác giá trị đã sửa (cảnh báo không chặn, `summary.edit_conflicts`);
+   (2) trạng thái thu hồi **chỉ là nhãn + bộ lọc**, không đổi phép tính (đã kiểm: mọi phép tính TB / số server / vùng / cảnh báo
+   chỉ dùng server có log VTNet trong khoảng xem — server không có log, kể cả đã thu hồi, không vào mẫu số); (3) mặc định luôn
+   **"Đang sử dụng"** (không suy từ sheet 'DS đã thu' — trạng thái số liệu "Đã thu hồi" theo sheet đó vẫn giữ riêng).
+   Backend: bảng `inventory_override` (migration **0003**, khóa = IP trong file thống kê; cột NULL = theo file, '' = để trống;
+   `reclaim_status` NULL = in_use) · `inventory_repo.apply_overrides/effective_frame` đè lên snapshot hiện hành cho phân tích,
+   danh mục, chi tiết, bộ lọc (meta), xuất Excel (đầu mối/phạm vi) · `services/inventory_service.py`
+   (chuẩn hóa như file: đầu mối chữ thường; trùng file → không lưu; nhật ký `inventory_edited`) · `PATCH /inventory/{inventory_ip}`
+   (chỉ admin, `require_admin` ở main.py) · `data_version` gồm (IP, mốc sửa) → phân tích tính lại; đổi đầu mối → phạm vi tài khoản
+   đầu mối đổi ngay · `replay` chép + kiểm bảng mới. Catalog thêm `reclaim_status`, `edited` (cột → giá trị theo file), đếm
+   `reclaim_marked`, `edited`. Frontend (Danh mục server): cột "Trạng thái thu hồi" (admin đổi ngay trong bảng; người khác xem nhãn),
+   bộ lọc trạng thái thu hồi (`?reclaim=`), nút **Sửa** mở hộp thoại 6 cột + trạng thái (mỗi ô hiện "Theo file: …" + "Về theo
+   file"), ô sửa tay có biểu tượng bút (di chuột xem giá trị file), CSV thêm cột; chi tiết server hiện trạng thái thu hồi.
+   Hàm thuần `lib/inventoryEdit.ts` (Vitest). Test `test_inventory_edit.py` (10) + replay + ma trận quyền. Kiểm: SQLite 215/12,
+   SQLite + PG 346/22, Vitest 52, E2E 6/6, thử tay trên server E2E (sửa, lọc, đổi trạng thái); CSDL thật đã migrate 0003
+   (sao lưu trước: `backups/gpu-util-data-20261105-155857.zip`).
+   **Xuất Excel** (làm tiếp cùng ngày, người dùng đồng ý): `export_service._apply_edits` (tầng app, gpu_core/skill không đổi) ghi
+   giá trị sửa tay vào đúng ô của sheet "Thống kê chi tiết" (chỉ ô khác file; nền vàng nhạt `FFF2CC` + ghi chú "Sửa tay trên web —
+   theo file: …") và thêm cột cuối **"Trạng thái thu hồi"** cho mọi dòng; đầu mối phạm vi own nhận file theo đầu mối đã sửa.
+   Công thức sheet GPU QHDC vẫn giữ (test dữ liệu thật). Chưa làm (đề xuất): lọc theo trạng thái thu hồi ở trang Cảnh báo.

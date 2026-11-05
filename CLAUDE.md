@@ -87,6 +87,10 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
   9 liên kết RTX6000 seed từ `backend/seeds/ip_links.csv` (ghép theo IP tăng dần, người dùng đã chốt) với `pair_confirmed=false` — code không tự đổi.
 - Mẫu tải append-only theo lô; giá trị hiệu lực = lô committed mới nhất (VIEW `util_effective`). Không UPDATE/DELETE mẫu cũ để "sửa số".
   Luôn lưu file gốc vào `data/uploads/<sha256>.xlsx` — đó là nguồn để xuất Excel và để chuyển dữ liệu sang PostgreSQL ở GĐ2.
+- **Sửa tay danh mục** (PLAN §14.11, người dùng chốt 05/11/2026): admin sửa đầu mối/model/đầu vào hệ thống/dịch vụ/quản lý bằng/cụm +
+  "Trạng thái thu hồi" (mặc định Đang sử dụng) → bảng `inventory_override` (khóa IP thống kê) đè lên lô thống kê khi đọc
+  (`inventory_repo.effective_frame` — mọi chỗ đọc thống kê để hiển thị/phạm vi phải đi qua đây), **giữ cả khi nhập file mới**
+  (xem trước nhập báo ô khác). Chỉ là thông tin: không đổi phép tính; phép tính chỉ theo server có log VTNet trong khoảng xem.
 - **Schema trung tính SQLite ↔ PostgreSQL** (PLAN §4): IP là TEXT, JSON qua `sa.JSON`, view thường (không materialized view), không dùng
   hàm/kiểu riêng của 1 dialect. Truy vấn qua SQLAlchemy Core/ORM.
 - Mọi service nhận `Scope` (không nhận user). `deps.py`: cookie phiên → `CurrentUser` (đọc lại app_user mỗi request: khóa / đổi
@@ -112,7 +116,9 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
 - Python: type hints đầy đủ, ruff (format + lint), mypy cho `app/`. Router mỏng → service → repo. Pydantic schema cho mọi I/O.
 - Giờ mẫu: `DateTime` không timezone, quy ước giờ VN; ngày trên UI `dd/mm/yyyy`; số `Intl.NumberFormat('vi-VN')` (1 chữ số thập phân cho %).
 - Frontend: chuỗi UI tập trung `src/lib/vi.ts`; màu/nhãn vùng tập trung `src/lib/zones.ts`; bộ lọc toàn cục đồng bộ URL.
-  Đỏ chỉ dùng cho "Nguy hiểm"; vùng luôn có chữ/biểu tượng, không chỉ màu.
+  **Phong cách Viettel** (người dùng chốt 05/11/2026, PLAN §14.10): đỏ `#ee0033` cho thương hiệu, nút, tab, hover; sidebar
+  `#241d1e`; nền `#e6e6e6`; token ở `src/lib/theme.ts`, khối "GPU Util" + logo ở `components/Brand.tsx`. Vì đỏ đã dùng cho giao diện,
+  vùng "Nguy hiểm" **luôn** kèm chữ + biểu tượng (ZoneTag), không bao giờ chỉ bằng màu.
 - Migration: mỗi thay đổi schema = 1 file Alembic có `downgrade`. Không sửa migration đã merge.
 - Không CDN, không tải tài nguyên ngoài lúc chạy.
 

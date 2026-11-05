@@ -40,13 +40,14 @@
 | Roadmap §14.3 thông báo đầu mối · §14.4 CPU/RAM (chờ VTNet) · §14.5 kế hoạch cắt chuyển · §14.7 nâng ECharts 6 | ⏳ chưa làm |
 | Roadmap §14.8 **file VTNet theo tuần**: nhãn tuần, kiểm tên file + khoảng trống, mặc định 4 tuần, cắt khoảng xem, chặn báo cáo tháng chưa đủ, xu hướng theo tuần | ✅ |
 | Roadmap §14.9 **"Áp T cho"**: cả 2 chỉ số (3 vùng, mặc định) / chỉ compute / chỉ memory (2 vùng) — Cài đặt + chọn khi xem; gpu_core 2.5.0 | ✅ |
+| Roadmap §14.11 **Sửa tay danh mục server** + cột "Trạng thái thu hồi" (admin; bảng `inventory_override`, migration 0003; giữ khi nhập file mới; không đổi phép tính) | ✅ |
 
 **Dữ liệu** (máy gốc của admin, có thể đã chép kèm): `data/app.db` (SQLite) đã nhập 5 lô — thống kê 129 IP + VTNet T7, T8, T9,
 T10/2026; file gốc ở `data/uploads/<sha256>.xlsx`; **chưa có tài khoản** (tạo: `bash scripts/task.sh create-admin`).
 File thống kê hiện tại thiếu 11 IP so với VTNet T10 (8 server H200 `10.29.95.x` + 3) → chờ bản thống kê mới (CONTEXT.md §7).
 
-**Mốc test** (máy gốc, 05/11/2026, có `samples/`): `bash scripts/task.sh test` → backend **205 passed / 12 skipped** (SQLite),
-Vitest **47 passed**; `task.sh lint` xanh; với PostgreSQL (`task.sh test-pg`) **326 passed / 22 skipped**; E2E `task.sh e2e` **6/6**.
+**Mốc test** (máy gốc, 05/11/2026, có `samples/`): `bash scripts/task.sh test` → backend **215 passed / 12 skipped** (SQLite),
+Vitest **52 passed**; `task.sh lint` xanh; với PostgreSQL (`task.sh test-pg`) **346 passed / 22 skipped**; E2E `task.sh e2e` **6/6**.
 Thiếu `samples/` (dữ liệu thật) → nhiều test tự **skip**, không fail — đó là đúng thiết kế.
 
 **Deploy lên server thật**: chưa làm. Mọi thứ cần biết + danh sách việc còn thiếu: `DEPLOY.md` (đặc biệt §12).
@@ -187,7 +188,7 @@ curl của Git Bash (Schannel) cần `--ssl-no-revoke` với CA tự tạo; Post
 **Gặp điều tài liệu không nói hoặc mâu thuẫn với dữ liệu**: dừng, nêu phát hiện + số liệu, đề xuất phương án, hỏi.
 
 **Quy ước**: tên biến/hàm/bảng tiếng Anh; chuỗi UI, thông báo lỗi API (`detail`), comment nghiệp vụ **tiếng Việt**; ngày UI
-`dd/mm/yyyy`; số `Intl.NumberFormat('vi-VN')` (1 chữ số thập phân cho %); đỏ chỉ dùng cho "Nguy hiểm".
+`dd/mm/yyyy`; số `Intl.NumberFormat('vi-VN')` (1 chữ số thập phân cho %); giao diện phong cách Viettel (đỏ `#ee0033` cho nút/tab), vùng "Nguy hiểm" luôn kèm chữ + biểu tượng.
 
 **Lời khuyên cho model tự host**: đọc từng mục thay vì cả file lớn; **kiểm chứng bằng cách chạy test / đọc code**, không đoán API
 hay tên hàm; trích dẫn `file:dòng` khi giải thích; không bịa số liệu (thiếu → nói thiếu).

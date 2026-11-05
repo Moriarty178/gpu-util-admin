@@ -25,9 +25,10 @@ import { LoadChart } from '../components/LoadChart'
 import { NotesCard } from '../components/NotesCard'
 import { ServerBadges } from '../components/ServerBadges'
 import { ErrorState, Loading, NoData } from '../components/States'
-import { PatternTag, StatusTag, ZoneTag } from '../components/Tags'
+import { PatternTag, ReclaimTag, StatusTag, ZoneTag } from '../components/Tags'
 import { fmtInt, fmtPct, fmtRange, shortGpu } from '../lib/format'
 import { vi } from '../lib/vi'
+import type { ReclaimStatus } from '../lib/zones'
 import { globalSearch } from '../store/filters'
 import { useFilters, usePageParam } from '../store/useFilters'
 
@@ -159,6 +160,9 @@ export default function ServerDetail() {
                   <Descriptions.Item label={vi.server.cluster}>{(inv.cluster as string) ?? '—'}</Descriptions.Item>
                   <Descriptions.Item label={vi.server.managedBy}>{(inv.managed_by as string) ?? '—'}</Descriptions.Item>
                   <Descriptions.Item label={vi.server.inputLoad}>{(inv.input_load as string) ?? '—'}</Descriptions.Item>
+                  <Descriptions.Item label={vi.inventory.col.reclaim}>
+                    <ReclaimTag status={(inv.reclaim_status as ReclaimStatus | null) ?? 'in_use'} />
+                  </Descriptions.Item>
                   <Descriptions.Item label={vi.server.gpuInventory}>
                     {(inv.inventory_gpu_spec as string) ?? '—'}
                   </Descriptions.Item>

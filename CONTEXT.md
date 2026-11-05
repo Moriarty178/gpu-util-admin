@@ -115,6 +115,12 @@ Hạn chế phải luôn hiển thị: file chỉ có GPU, **không có CPU/RAM*
 - Cột GPU viết lộn xộn: `4x NVIDIA L40S`, `2*L4`, ` 2*A30` (có NBSP), `3xNVIDIA  A30`, `8xRTX6000`, `L40S` (thiếu số lượng).
 - `Quản lý bằng`: cụm k8s 98 / Server độc lập 39. `Tên cụm`: 1, 2, 3, 4, 5, "Server độc lập".
 - STT bị trùng (132, 133) → **không dùng STT làm khóa**; khóa là IP.
+- **Sửa tay trên web** (PLAN §14.11, 05/11/2026): admin sửa Đầu mối / Model / Đầu vào hệ thống / Dịch vụ / Quản lý bằng / Tên cụm
+  và đặt "Trạng thái thu hồi" (Đang sử dụng mặc định / VTNet đã thu hồi) khi file thống kê chưa kịp cập nhật. Giá trị sửa tay đè
+  lên file khi hiển thị và **được giữ khi nhập file mới** (xem trước nhập liệt kê ô khác). Không đổi phép tính: số liệu vẫn chỉ
+  tính trên server có log VTNet trong khoảng xem; golden §7 không bị ảnh hưởng (chưa có sửa tay). Khác với trạng thái số liệu
+  "Đã thu hồi" (suy từ sheet 'DS đã thu' của VTNet) — 2 thông tin độc lập. File Excel xuất ghi giá trị sửa tay vào ô (nền vàng
+  nhạt + ghi chú giá trị theo file) và thêm cột cuối "Trạng thái thu hồi".
 
 ## 6. Kết quả ánh xạ & chất lượng dữ liệu (T10 + inventory mới)
 

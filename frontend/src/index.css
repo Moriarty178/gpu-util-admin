@@ -1,0 +1,6 @@
+/* Bỏ lề mặc định 8px của trình duyệt → header + sidebar sát mép màn hình */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}

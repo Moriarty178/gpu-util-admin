@@ -5,6 +5,8 @@
 export type Zone = 'danger' | 'warning' | 'safe'
 export type Pattern = 'idle' | 'bursty_idle' | 'memory_bound' | 'compute_bound' | 'high_load' | 'healthy'
 export type DataStatus = 'has_data' | 'reclaimed' | 'no_data' | 'vtnet_only'
+/** Trạng thái thu hồi admin đặt trong Danh mục server (PLAN §14.11) — chỉ là thông tin, không đổi phép tính. */
+export type ReclaimStatus = 'in_use' | 'reclaimed'
 
 export const ZONE_ORDER: readonly Zone[] = ['danger', 'warning', 'safe']
 
@@ -74,6 +76,12 @@ export const DATA_STATUS_META: Record<DataStatus, { label: string; tag: string }
   no_data: { label: 'Không có số liệu VTNet', tag: 'default' },
   vtnet_only: { label: 'Chưa có trong thống kê', tag: 'gold' },
 }
+
+export const RECLAIM_META: Record<ReclaimStatus, { label: string; tag: string }> = {
+  in_use: { label: 'Đang sử dụng', tag: 'default' },
+  reclaimed: { label: 'VTNet đã thu hồi', tag: 'purple' },
+}
+export const RECLAIM_STATUSES = Object.keys(RECLAIM_META) as ReclaimStatus[]
 
 // Biểu đồ: GPU% và VRAM% 2 màu trung tính phân biệt rõ (không đỏ/cam/xanh lá của vùng)
 export const SERIES = {

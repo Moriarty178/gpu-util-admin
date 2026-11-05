@@ -66,6 +66,8 @@ def build_source(c: TestClient, src_engine: Engine, tmp_path: Path) -> None:
     b5 = staged(c, FIX / "synthetic_t7.xlsx")
     assert c.post(f"/api/v1/imports/{b5['id']}/discard").status_code == 200
     commit(c, staged(c, edited)["id"])
+    r = c.patch("/api/v1/inventory/192.0.2.3", json={"service": "Rerank", "reclaim_status": "reclaimed"})
+    assert r.status_code == 200, r.text  # sửa tay danh mục (PLAN §14.11) — đích phải giữ
     with Session(src_engine) as s, s.begin():  # admin đã sửa liên kết & cài đặt (đích phải giống, không lấy bản seed)
         s.execute(delete(IpLink).where(IpLink.inventory_ip == "10.207.188.1"))
         s.execute(update(IpLink).where(IpLink.inventory_ip == "10.207.188.2").values(pair_confirmed=True))
@@ -94,6 +96,7 @@ def test_replay_all_batch_states(
     assert list(rep.id_map) == [1, 2, 3, 6] and rep.skipped == {"failed": 1, "discarded": 1}
     assert (rep.links, rep.settings, rep.users, rep.users_kept) == (8, 7, 1, [])  # tài khoản admin của nguồn
     assert rep.audit > 0  # nhật ký đăng nhập + nhập lô của nguồn
+    assert rep.edits == 1
     assert verify(src_engine, dst_engine) == []
 
     with Session(dst_engine) as s:

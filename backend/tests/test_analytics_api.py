@@ -205,6 +205,8 @@ def test_catalog(loaded: TestClient, engine: Engine) -> None:
         "vtnet_only": 1,
         "linked": 0,
         "gpu_count_mismatch": 0,
+        "reclaim_marked": 0,  # sửa tay danh mục (PLAN §14.11): chưa ai sửa
+        "edited": 0,
     }
     by_ip = {i["ip"]: i for i in c["items"]}
     assert by_ip["192.0.2.9"]["data_status"] == "no_data" and by_ip["192.0.2.9"]["gpu_model"] == "L40S"

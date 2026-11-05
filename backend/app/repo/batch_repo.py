@@ -6,7 +6,16 @@ from datetime import datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import AppSetting, ImportBatch, InventoryItem, IpLink, UtilSample, VtnetOverview, VtnetReclaim
+from app.db.models import (
+    AppSetting,
+    ImportBatch,
+    InventoryItem,
+    InventoryOverride,
+    IpLink,
+    UtilSample,
+    VtnetOverview,
+    VtnetReclaim,
+)
 
 
 def get(s: Session, batch_id: int) -> ImportBatch | None:
@@ -55,7 +64,7 @@ def committed_batches(s: Session, kind: str) -> Sequence[ImportBatch]:
 
 
 def data_version(s: Session) -> tuple[object, ...]:
-    """Đổi khi có lô xác nhận / hoàn tác, liên kết IP hay cài đặt thay đổi → khóa cache phân tích."""
+    """Đổi khi có lô xác nhận / hoàn tác, liên kết IP, cài đặt hay sửa tay danh mục thay đổi → khóa cache phân tích."""
     b = s.execute(
         select(
             func.max(ImportBatch.committed_at), func.max(ImportBatch.rolled_back_at), func.count(ImportBatch.id)
@@ -68,4 +77,12 @@ def data_version(s: Session) -> tuple[object, ...]:
         ).all()
     )
     settings = s.execute(select(func.count(AppSetting.key), func.max(AppSetting.updated_at))).one()
-    return (*b, links, *settings)
+    # sửa tay danh mục (PLAN §14.11): mỗi IP + mốc sửa — sửa / về theo file (xóa dòng) đều làm khóa đổi
+    edits = tuple(
+        s.execute(
+            select(InventoryOverride.inventory_ip, InventoryOverride.updated_at).order_by(
+                InventoryOverride.inventory_ip
+            )
+        ).all()
+    )
+    return (*b, links, *settings, edits)
