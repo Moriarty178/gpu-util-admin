@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 MONTH_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -101,6 +103,7 @@ class MonthlyReportOut(BaseModel):
     start: str
     end: str
     threshold: float
+    zone_metric: Literal["both", "gpu", "mem"] = "both"
     vtnet_t: float
     scope_owner: str | None
     available_months: list[str]
@@ -119,5 +122,6 @@ class MonthlyReportIn(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     month: str | None = Field(None, pattern=MONTH_PATTERN, description="YYYY-MM; mặc định = tháng mới nhất")
     threshold: float | None = Field(None, ge=0, le=100)
+    zone_metric: Literal["both", "gpu", "mem"] | None = Field(None, description="Áp T cho chỉ số nào; trống = cài đặt")
     message: str | None = Field(None, max_length=MAX_MESSAGE, description="Trống = thông điệp gợi ý")
     recommendations: list[Recommendation] | None = Field(None, max_length=3, description="Trống = kiến nghị gợi ý")

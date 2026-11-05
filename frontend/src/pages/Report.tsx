@@ -11,7 +11,7 @@ import { fmtDelta } from '../lib/compare'
 import { fmtDate, fmtInt, fmtPct, fmtPeriodLabel, fmtRange } from '../lib/format'
 import { draftErrors, REPORT_LIMITS, reportBody, type ReportDraft } from '../lib/report'
 import { vi } from '../lib/vi'
-import { ZONE_META } from '../lib/zones'
+import { thresholdLabel, ZONE_META } from '../lib/zones'
 
 const t = vi.report
 
@@ -138,7 +138,7 @@ export default function Report() {
                 value: m,
                 label: incomplete.has(m) ? `${fmtPeriodLabel(m)} — ${t.incompleteTag}` : fmtPeriodLabel(m),
               }))} />
-            <Typography.Text type="secondary">{fmtRange(d.start, d.end)} · T = {d.threshold}%</Typography.Text>
+            <Typography.Text type="secondary">{fmtRange(d.start, d.end)} · {thresholdLabel(d.threshold, d.zone_metric)}</Typography.Text>
           </Space>
           <Button type="primary" icon={<DownloadOutlined />} loading={busy} disabled={errors.length > 0 || !c.complete}
             onClick={download}>

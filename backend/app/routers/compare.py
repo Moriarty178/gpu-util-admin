@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Query
 
 from app.deps import ScopeDep, SessionDep
-from app.routers.analytics_common import CacheDep, FiltersDep, Threshold, errors
+from app.routers.analytics_common import CacheDep, FiltersDep, Threshold, ZoneMetricQ, errors
 from app.schemas.g2 import CompareOut, TrendOut
 from app.services import compare_service as svc
 
@@ -33,8 +33,9 @@ def compare(
     b_start: D = None,
     b_end: D = None,
     threshold: Threshold = None,
+    zone_metric: ZoneMetricQ = None,
 ) -> CompareOut:
-    out = svc.compare(s, cache, (a_start, a_end), (b_start, b_end), threshold, f, scope)
+    out = svc.compare(s, cache, (a_start, a_end), (b_start, b_end), threshold, f, scope, zone_metric)
     return CompareOut.model_validate(out)
 
 
@@ -48,5 +49,7 @@ def compare(
 def trend(
     s: SessionDep, cache: CacheDep, f: FiltersDep, scope: ScopeDep, start: D = None, end: D = None,
     threshold: Threshold = None, granularity: Annotated[Literal["month", "week"], Query()] = "month",
+    zone_metric: ZoneMetricQ = None,
 ) -> TrendOut:  # fmt: skip
-    return TrendOut.model_validate(svc.trend_zones(s, cache, start, end, threshold, f, scope, granularity))
+    out = svc.trend_zones(s, cache, start, end, threshold, f, scope, granularity, zone_metric)
+    return TrendOut.model_validate(out)

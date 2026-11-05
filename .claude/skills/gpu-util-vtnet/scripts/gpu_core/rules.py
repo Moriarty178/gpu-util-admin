@@ -6,6 +6,12 @@ Luật vùng (1 ngưỡng T, mặc định 40%, so sánh `<=`):
   đúng 1 trong 2 <= T    -> warning ("Cảnh báo"   - cần tối ưu)
   cả hai > T             -> safe    ("An toàn")
 
+Chế độ "áp ngưỡng T cho 1 chỉ số" (`RuleParams.zone_metric`, người dùng chốt 05/11/2026) — CHỈ 2 vùng, bỏ qua chỉ số kia:
+  zone_metric="gpu":  gpu <= T -> danger, còn lại -> safe     (không có "Cảnh báo")
+  zone_metric="mem":  mem <= T -> danger, còn lại -> safe
+  zone_metric="both" (mặc định) = luật 3 vùng ở trên, kết quả y như trước.
+"Ngày nguy hiểm" / chuỗi ngày thấp tải đếm theo đúng chế độ đang áp (ngày rơi vào vùng Nguy hiểm).
+
 Luật THẤP TẢI của VTNet (suy luận từ sheet pivot_value file T10, khớp 250/250 server):
   gpu < 10 VÀ mem < 10   -> VTNet gắn "THẤP TẢI" (so sánh `<` chặt)
 
@@ -23,6 +29,14 @@ VTNET_LOW_LOAD_T = 10.0
 BURSTY_PEAK = 70.0          # đỉnh util ngày >= 70% mà trung bình <= T  => bursty
 HIGH_LOAD = 80.0            # cả 2 >= 80% => tải cao
 THIN_COVERAGE = 0.8         # số ngày có dữ liệu / số ngày trong khoảng < 0.8 => dữ liệu mỏng
+ZONE_METRICS = ("both", "gpu", "mem")   # chỉ số áp ngưỡng T
+ZONE_METRIC_LABEL_VI = {"both": "cả compute và memory", "gpu": "compute", "mem": "memory"}
+
+
+def check_zone_metric(metric: str) -> str:
+    if metric not in ZONE_METRICS:
+        raise ValueError(f"zone_metric phải là một trong {ZONE_METRICS}, nhận {metric!r}")
+    return metric
 
 
 @dataclass(frozen=True)
@@ -31,6 +45,10 @@ class RuleParams:
     bursty_peak: float = BURSTY_PEAK
     high_load: float = HIGH_LOAD
     thin_coverage: float = THIN_COVERAGE
+    zone_metric: str = "both"
+
+    def __post_init__(self) -> None:
+        check_zone_metric(self.zone_metric)
 
 
 DEFAULT_PARAMS = RuleParams()
@@ -50,13 +68,34 @@ def _isnum(x) -> bool:
     return x is not None and not (isinstance(x, float) and math.isnan(x))
 
 
-def classify_zone(gpu: float, mem: float, threshold: float = DEFAULT_THRESHOLD) -> str:
+def is_danger(gpu, mem, threshold: float = DEFAULT_THRESHOLD, metric: str = "both"):
+    """Điều kiện vùng Nguy hiểm — dùng được cho số lẫn pandas Series (đếm ngày nguy hiểm)."""
+    if metric == "gpu":
+        return gpu <= threshold
+    if metric == "mem":
+        return mem <= threshold
+    check_zone_metric(metric)
+    return (gpu <= threshold) & (mem <= threshold)
+
+
+def classify_zone(gpu: float, mem: float, threshold: float = DEFAULT_THRESHOLD, metric: str = "both") -> str:
+    if metric != "both":
+        return "danger" if is_danger(gpu, mem, threshold, metric) else "safe"
     lg, lm = gpu <= threshold, mem <= threshold
     if lg and lm:
         return "danger"
     if lg != lm:
         return "warning"
     return "safe"
+
+
+def zone_rule_text(threshold: float, metric: str = "both") -> str:
+    """Mô tả luật vùng đang áp (in lên Excel, slide, giao diện)."""
+    T = f"{threshold:g}%"
+    if metric == "both":
+        return f"util≤{T} & mem≤{T} = Nguy hiểm | đúng 1 chỉ số ≤{T} = Cảnh báo | cả 2 >{T} = An toàn"
+    name = ZONE_METRIC_LABEL_VI[check_zone_metric(metric)]
+    return f"chỉ xét {name}: {name}≤{T} = Nguy hiểm | {name}>{T} = An toàn (bỏ qua chỉ số còn lại, không có Cảnh báo)"
 
 
 def classify_pattern(gpu: float, mem: float, threshold: float = DEFAULT_THRESHOLD,
@@ -87,19 +126,24 @@ def assessment_text(gpu: float, mem: float, threshold: float = DEFAULT_THRESHOLD
     head = (f"util TB {gpu:.0f}% / VRAM TB {mem:.0f}% (đỉnh util {peak_gpu:.0f}%)"
             if _isnum(peak_gpu) else f"util TB {gpu:.0f}% / VRAM TB {mem:.0f}%")
     p = classify_pattern(gpu, mem, T, peak_gpu, params)
+    # memory/compute-bound: "CẢNH BÁO" ở luật cả 2; luật 1 chỉ số → Nguy hiểm hoặc An toàn (ghi rõ chỉ số đang xét)
+    zone = classify_zone(gpu, mem, T, params.zone_metric)
+    head_zone = ZONE_LABEL_VI[zone].upper()
+    if params.zone_metric != "both":
+        head_zone += f" (theo {ZONE_METRIC_LABEL_VI[params.zone_metric]})"
     if p == "bursty_idle":
         body = (f"NGUY HIỂM(trung bình) nhưng BURSTY: có đỉnh util {peak_gpu:.0f}% → job chạy ngắt quãng. "
                 "Xác minh lịch/cron trước khi thu hồi, đừng cắt vội.")
     elif p == "idle":
         body = "NGUY HIỂM – idle thật: compute+VRAM đều thấp cả kỳ. Ứng viên thu hồi/tái phân bổ NGAY."
     elif p == "memory_bound":
-        body = (f"CẢNH BÁO – memory-bound: VRAM {mem:.0f}% (model đã load) nhưng compute chỉ {gpu:.0f}%. "
+        body = (f"{head_zone} – memory-bound: VRAM {mem:.0f}% (model đã load) nhưng compute chỉ {gpu:.0f}%. "
                 "Service chạy nhưng ít request / batch chưa tối ưu → gom model, giảm số card, "
                 "hoặc chia card (time-slicing/MPS).")
         if bursty:
             body += f" Có đỉnh util {peak_gpu:.0f}% (bursty) – cân nhắc khi tối ưu."
     elif p == "compute_bound":
-        body = (f"CẢNH BÁO – compute-bound: compute {gpu:.0f}% nhưng VRAM {mem:.0f}% thấp (model nhỏ, dư VRAM). "
+        body = (f"{head_zone} – compute-bound: compute {gpu:.0f}% nhưng VRAM {mem:.0f}% thấp (model nhỏ, dư VRAM). "
                 "Dồn thêm workload/chia MIG để tăng mật độ.")
     elif p == "high_load":
         body = f"AN TOÀN – tải cao ổn định (compute {gpu:.0f}%, VRAM {mem:.0f}%). Không nén thêm, cân nhắc dư địa."

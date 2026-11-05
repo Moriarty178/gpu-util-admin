@@ -392,6 +392,80 @@ def test_rule_params_change_results():
     assert g.classify_pattern(5, 5, 40, 75, g.RuleParams(bursty_peak=80)) == "idle"
 
 
+# ------------------------------------------------------------------ áp ngưỡng T cho 1 chỉ số (gpu_core 2.5, PLAN §14.9)
+
+
+@pytest.mark.parametrize(
+    "gpu,mem,both,only_gpu,only_mem",
+    [
+        (15, 75, "warning", "danger", "safe"),  # ví dụ người dùng 10.224.58.73, T = 40
+        (60, 20, "warning", "safe", "danger"),  # chế độ 1 chỉ số bỏ qua hẳn chỉ số kia
+        (40, 40, "danger", "danger", "danger"),  # biên <= giữ nguyên
+        (40.01, 40, "warning", "safe", "danger"),
+        (5, 5, "danger", "danger", "danger"),
+        (80, 85, "safe", "safe", "safe"),
+    ],
+)
+def test_zone_metric_modes(gpu, mem, both, only_gpu, only_mem):
+    assert g.classify_zone(gpu, mem, 40) == both == g.classify_zone(gpu, mem, 40, "both")
+    assert g.classify_zone(gpu, mem, 40, "gpu") == only_gpu
+    assert g.classify_zone(gpu, mem, 40, "mem") == only_mem
+
+
+def test_zone_metric_rejects_unknown():
+    with pytest.raises(ValueError):
+        g.RuleParams(zone_metric="cpu")
+    with pytest.raises(ValueError):
+        g.classify_zone(10, 10, 40, "GPU")
+
+
+def test_zone_metric_server_stats_synthetic():
+    """Tính tay từ make_synthetic.SERIES, T = 40, 01–05/10: .3 5/90 · .4 60/20 · .5 2/3 · .6 gpu [0,0,0,0,100] mem 30."""
+    wb = g.read_vtnet_workbook(FIX / "synthetic_t10.xlsx")
+
+    def run(metric):
+        st = g.server_stats(wb.raw, "2026-10-01", "2026-10-05", 40, params=g.RuleParams(zone_metric=metric))
+        return st.set_index("ip")
+
+    both, gpu, mem = run("both"), run("gpu"), run("mem")
+    assert both["zone"].value_counts().to_dict() == {"safe": 2, "warning": 2, "danger": 2}
+    assert sorted(gpu.index[gpu["zone"] == "danger"]) == ["192.0.2.3", "192.0.2.5", "192.0.2.6"]
+    assert sorted(mem.index[mem["zone"] == "danger"]) == ["192.0.2.4", "192.0.2.5", "192.0.2.6"]
+    assert "warning" not in set(gpu["zone"]) | set(mem["zone"])
+    # ngày nguy hiểm & chuỗi ngày theo chế độ: .6 ngày 5 gpu 100 / mem 30 → nguy hiểm chỉ khi xét memory
+    assert [both.loc["192.0.2.6", c] for c in ("danger_days", "low_streak")] == [4, 0]
+    assert [gpu.loc["192.0.2.6", c] for c in ("danger_days", "low_streak")] == [4, 0]
+    assert [mem.loc["192.0.2.6", c] for c in ("danger_days", "low_streak")] == [5, 5]
+    assert [gpu.loc["192.0.2.3", c] for c in ("danger_days", "low_streak")] == [5, 5]
+    assert both.loc["192.0.2.3", "danger_days"] == 0 and mem.loc["192.0.2.4", "danger_days"] == 5
+    # mẫu hình giữ mô tả theo cả 2 chỉ số; nhận xét ghi đúng vùng đang áp
+    assert gpu.loc["192.0.2.3", "pattern"] == both.loc["192.0.2.3", "pattern"] == "memory_bound"
+    assert "CẢNH BÁO – memory-bound" in both.loc["192.0.2.3", "assessment"]
+    assert "NGUY HIỂM (theo compute) – memory-bound" in gpu.loc["192.0.2.3", "assessment"]
+    assert "AN TOÀN (theo compute) – compute-bound" in gpu.loc["192.0.2.4", "assessment"]
+    assert "NGUY HIỂM (theo memory) – compute-bound" in mem.loc["192.0.2.4", "assessment"]
+    assert g.low_load_streak(wb.raw[wb.raw["ip"] == "192.0.2.6"], 40, "mem") == 5
+    assert g.low_load_streak(wb.raw[wb.raw["ip"] == "192.0.2.6"], 40) == 0
+
+
+def test_zone_metric_export_rule_line(tmp_path):
+    import openpyxl
+
+    from gpu_core.export import SUMMARY_SHEET, write_assessed_inventory
+
+    wb = g.read_vtnet_workbook(FIX / "synthetic_t10.xlsx")
+    inv = g.read_inventory(FIX / "synthetic_inventory.xlsx")
+    p = g.RuleParams(zone_metric="gpu")
+    st = g.server_stats(wb.raw, "2026-10-01", "2026-10-05", 40, params=p)
+    out = tmp_path / "kq.xlsx"
+    write_assessed_inventory(FIX / "synthetic_inventory.xlsx", out, st, inv, 40, "2026-10-01", "2026-10-05", params=p)
+    x = openpyxl.load_workbook(out)
+    assert x[SUMMARY_SHEET].cell(2, 1).value.startswith("Luật vùng (T=40%): chỉ xét compute: compute≤40% = Nguy hiểm")
+    ws = x["Thống kê chi tiết"]
+    zones = {ws.cell(r, 10).value: ws.cell(r, 18).value for r in range(2, ws.max_row + 1)}
+    assert zones["192.0.2.3"] == "Nguy hiểm" and zones["192.0.2.4"] == "An toàn"
+
+
 def test_compare_periods_movements():
     """Chuyển vùng giữa 2 kỳ: tốt hơn = improved, xấu hơn = worsened, chỉ có ở kỳ sau = new, chỉ ở kỳ trước = gone."""
     prev = pd.DataFrame({"ip": ["a", "b", "c", "e"], "zone": ["safe", "warning", "danger", "warning"],

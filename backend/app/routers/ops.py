@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -15,16 +15,23 @@ from app.services import ops_service as svc
 router = APIRouter(tags=["ops"])
 
 
+class SettingChoice(BaseModel):
+    value: str
+    label: str
+
+
 class SettingOut(BaseModel):
     key: str
-    value: float | int
-    default: float | int
+    value: float | int | str
+    default: float | int | str
     label: str
     hint: str
     min: float
     max: float
     integer: bool
     unit: str
+    kind: Literal["number", "choice"] = "number"
+    choices: list[SettingChoice] = Field(default_factory=list, description="Chỉ có khi kind = choice")
     updated_by: str | None = None
     updated_at: dt.datetime | None = None
 

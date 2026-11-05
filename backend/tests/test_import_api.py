@@ -268,7 +268,7 @@ def test_seed_is_idempotent(engine: Engine) -> None:
     assert seed(engine) == {"settings_added": 0, "links_added": 0, "links_skipped": 9}
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM ip_link")).scalar() == 9
-        assert conn.execute(text("SELECT count(*) FROM app_setting")).scalar() == 6
+        assert conn.execute(text("SELECT count(*) FROM app_setting")).scalar() == 7
         assert conn.execute(text("SELECT count(*) FROM ip_link WHERE pair_confirmed")).scalar() == 0
         row = conn.execute(text("SELECT vtnet_ip, created_by FROM ip_link WHERE inventory_ip='10.207.188.1'")).one()
         assert tuple(row) == ("10.205.36.51", "seed")

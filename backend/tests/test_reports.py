@@ -212,3 +212,19 @@ def test_real_t7_t10_golden(client: TestClient) -> None:
     )
     r = client.post("/api/v1/reports/monthly.pptx", json={"month": "2026-10"})
     assert r.status_code == 200 and len(Presentation(io.BytesIO(r.content)).slides) == 7
+
+
+def test_single_metric_report(three_months: TestClient) -> None:
+    """Áp T chỉ cho compute (PLAN §14.9), tính tay: T8 Nguy hiểm .5 · T9 .2 (10/10) .3 (5/90) .5 · T10 .3 .5 .6;
+    .4 (60/20) An toàn mọi tháng. T9 → T10: .2 cải thiện, .3 .5 giữ Nguy hiểm."""
+    d = report(three_months, month="2026-10", zone_metric="gpu")
+    assert d["zone_metric"] == "gpu" and d["kpi"]["zones"] == {"danger": 3, "warning": 0, "safe": 3}
+    assert [m["zones"]["danger"] for m in d["trend"]] == [1, 3, 3]
+    assert d["movement"]["counts"]["improved"] == 1 and d["movement"]["counts"]["worsened"] == 0
+    streak = {r["ip"]: (r["streak_months"], r["streak_open"]) for r in d["danger"]}
+    assert streak == {"192.0.2.3": (2, False), "192.0.2.5": (3, True), "192.0.2.6": (1, False)}
+    r = three_months.post("/api/v1/reports/monthly.pptx", json={"month": "2026-10", "zone_metric": "gpu"})
+    assert r.status_code == 200, r.text
+    txt = slides_text(Presentation(io.BytesIO(r.content)))
+    assert "Ngưỡng T = 40% · chỉ compute" in txt[0] and "Vùng theo ngưỡng T = 40% · chỉ compute" in txt[6]
+    assert report(three_months, month="2026-10")["kpi"]["zones"] == {"danger": 2, "warning": 2, "safe": 2}

@@ -17,7 +17,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .parsing import is_ipv4, links_dict, norm_ip, norm_text
-from .rules import DEFAULT_PARAMS, PATTERN_LABEL_VI, VTNET_LOW_LOAD_T, ZONE_LABEL_VI, RuleParams
+from .rules import DEFAULT_PARAMS, PATTERN_LABEL_VI, VTNET_LOW_LOAD_T, ZONE_LABEL_VI, RuleParams, zone_rule_text
 
 FILL = {"danger": "F4CCCC", "warning": "FCE5CD", "safe": "D9EAD3", "na": "EFEFEF"}
 ASSESS_HEADER = "Đánh giá, nhận xét, cảnh báo, dựa trên Ultilization từ VTNet"
@@ -92,13 +92,15 @@ def write_assessed_inventory(inventory_path, out_path, stats: pd.DataFrame, inv:
 
     inv_eff = inv.assign(ip=inv["ip"].map(lambda v: links.get(v, v)))
     _summary(wb, stats, inv_eff, matched, rec_ips, reclaimed, threshold,
-             pd.Timestamp(start), pd.Timestamp(end), movement, params.vtnet_low_load_t)
+             pd.Timestamp(start), pd.Timestamp(end), movement, params.vtnet_low_load_t,
+             params.zone_metric)
     wb.calculation.fullCalcOnLoad = True
     wb.save(out_path)
     return {"matched": len(matched)}
 
 
-def _summary(wb, st, inv, matched, rec_ips, reclaimed, T, s, e, movement, vt=VTNET_LOW_LOAD_T):
+def _summary(wb, st, inv, matched, rec_ips, reclaimed, T, s, e, movement, vt=VTNET_LOW_LOAD_T,
+             metric="both"):
     if SUMMARY_SHEET in wb.sheetnames:
         del wb[SUMMARY_SHEET]
     ws = wb.create_sheet(SUMMARY_SHEET, 0)
@@ -115,8 +117,11 @@ def _summary(wb, st, inv, matched, rec_ips, reclaimed, T, s, e, movement, vt=VTN
         row[0] += k
 
     W(1, f"ĐÁNH GIÁ TẢI GPU VTNet — {s:%d/%m/%Y} → {e:%d/%m/%Y} (TTCN-VTT)", Font(name="Arial", bold=True, size=14)); nl()
-    W(1, f"Luật vùng (T={T:g}%): util≤T & mem≤T = Nguy hiểm | đúng 1 metric ≤T = Cảnh báo | cả 2 >T = An toàn. "
-         f"Cờ THẤP TẢI VTNet: util<{vt:g}% & mem<{vt:g}%."); nl()
+    if metric == "both":   # giữ nguyên câu cũ
+        W(1, f"Luật vùng (T={T:g}%): util≤T & mem≤T = Nguy hiểm | đúng 1 metric ≤T = Cảnh báo | cả 2 >T = An toàn. "
+             f"Cờ THẤP TẢI VTNet: util<{vt:g}% & mem<{vt:g}%."); nl()
+    else:
+        W(1, f"Luật vùng (T={T:g}%): {zone_rule_text(T, metric)}. Cờ THẤP TẢI VTNet: util<{vt:g}% & mem<{vt:g}%."); nl()
     W(1, "Lưu ý: VTNet xét CPU+RAM+GPU khi thu hồi; file chỉ có GPU → đây là xấp xỉ theo GPU.",
       Font(name="Arial", italic=True, color="CC0000")); nl(2)
 

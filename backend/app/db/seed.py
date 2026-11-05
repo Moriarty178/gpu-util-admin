@@ -29,6 +29,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "bursty_peak": g.BURSTY_PEAK,
     "high_load": g.HIGH_LOAD,
     "thin_coverage": g.THIN_COVERAGE,
+    "zone_metric": g.DEFAULT_PARAMS.zone_metric,  # "both" = luật 3 vùng; "gpu"/"mem" = áp T cho 1 chỉ số
     "max_upload_mb": 20,
 }
 

@@ -127,6 +127,7 @@ def preview(raw: pd.DataFrame, start: Any, end: Any, threshold: float, params: g
     gpu, mem, pts = _fleet(raw, start, end)
     return {
         "threshold": threshold,
+        "zone_metric": params.zone_metric,
         "n_servers": len(st),
         "zones": _zones(st),
         "vtnet_low_load": int(st["vtnet_low_load"].sum()) if "vtnet_low_load" in st else 0,

@@ -69,7 +69,7 @@ export default function Dashboard() {
         </Col>
         <Col xs={12} md={8} xl={4}>
           <Kpi
-            title={vi.kpi.danger(T)}
+            title={vi.kpi.danger(T, s.params.zone_metric)}
             value={fmtInt(s.zones.danger)}
             color={ZONE_META.danger.color}
             note={`${ZONE_META.warning.label} ${fmtInt(s.zones.warning)} · ${ZONE_META.safe.label} ${fmtInt(s.zones.safe)}`}

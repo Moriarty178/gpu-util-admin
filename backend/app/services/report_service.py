@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import gpu_core as g
 from app.errors import ServiceError
 from app.repo import util_repo
 from app.scope import Scope
@@ -89,8 +90,9 @@ def _pts(v: float) -> str:
 
 
 def monthly(
-    s: Session, cache: AnalyticsCache, month: str | None, threshold: float | None, scope: Scope
-) -> dict[str, Any]:
+    s: Session, cache: AnalyticsCache, month: str | None, threshold: float | None, scope: Scope,
+    zone_metric: str | None = None,
+) -> dict[str, Any]:  # fmt: skip
     days = util_repo.data_days(s)
     months = available_months(days)
     if not months:
@@ -102,13 +104,16 @@ def monthly(
     if month not in months:
         raise ServiceError(404, f"Chưa có dữ liệu VTNet cho {month_label(month)}. Có: {', '.join(months)}")
     start, end = month_bounds(month)
-    ctx = resolve_context(s, start, end, threshold)
+    ctx = resolve_context(s, start, end, threshold, zone_metric)
+    metric = ctx.zone_metric  # các kỳ xu hướng / so sánh dùng cùng luật với tháng báo cáo
     b = get_bundle(s, cache, ctx)
     fs = fleet_summary(b, NO_FILTERS, scope)
 
     # --- xu hướng: các tháng có dữ liệu ≤ tháng báo cáo (tối đa TREND_MONTHS)
     chosen = sorted(m for m in months if m <= month)[-TREND_MONTHS:]
-    tz = compare_service.trend_zones(s, cache, month_bounds(chosen[0])[0], end, ctx.threshold, NO_FILTERS, scope)
+    tz = compare_service.trend_zones(
+        s, cache, month_bounds(chosen[0])[0], end, ctx.threshold, NO_FILTERS, scope, zone_metric=metric
+    )
     trend = [
         {k: m[k] for k in ("month", "n_servers", "zones", "cards", "gpu_avg", "mem_avg")}
         for m in tz["months"]
@@ -120,7 +125,9 @@ def monthly(
     previous = movement = None
     if earlier:
         p = earlier[0]
-        cmp = compare_service.compare(s, cache, month_bounds(p), (start, end), ctx.threshold, NO_FILTERS, scope)
+        cmp = compare_service.compare(
+            s, cache, month_bounds(p), (start, end), ctx.threshold, NO_FILTERS, scope, zone_metric=metric
+        )
         a = cmp["a"]
         previous = {"month": p, **{k: a[k] for k in ("gpu_avg", "mem_avg", "n_servers", "zones", "cards_total")}}
         movement = {"counts": cmp["counts"], "matrix": cmp["matrix"]}
@@ -129,7 +136,7 @@ def monthly(
     al = alerts(b, NO_FILTERS, scope, zones=("danger",), sort="gpu_avg,mem_avg", page_size=500)
     danger_by_month: dict[str, set[str]] = {}
     for m in chosen:
-        bm = get_bundle(s, cache, resolve_context(s, *month_bounds(m), ctx.threshold))
+        bm = get_bundle(s, cache, resolve_context(s, *month_bounds(m), ctx.threshold, metric))
         srv = apply_scope(bm.servers, scope)
         danger_by_month[m] = set(srv.loc[srv["zone"] == "danger", "ip"]) if not srv.empty else set()
 
@@ -171,6 +178,7 @@ def monthly(
         "start": start.isoformat(),
         "end": end.isoformat(),
         "threshold": ctx.threshold,
+        "zone_metric": metric,
         "vtnet_t": ctx.params.vtnet_low_load_t,
         "scope_owner": scope.owner_key if scope.kind == "owner" else None,
         "available_months": months,
@@ -185,6 +193,12 @@ def monthly(
     }
     data["suggestion"] = suggest(data)
     return data
+
+
+def t_label(d: dict[str, Any]) -> str:
+    """'T = 40%' (luật cả 2 chỉ số) hoặc 'T = 40% · chỉ compute' (luật 1 chỉ số) — dùng chung cho gợi ý và slide."""
+    m = d.get("zone_metric", "both")
+    return f"T = {d['threshold']:g}%" + ("" if m == "both" else f" · chỉ {g.ZONE_METRIC_LABEL_VI[m]}")
 
 
 def suggest(d: dict[str, Any]) -> dict[str, Any]:
@@ -213,8 +227,8 @@ def suggest(d: dict[str, Any]) -> dict[str, Any]:
         w = d["movement"]["counts"]["worsened"]
         recs.append({
             "title": f"Theo dõi {w} server xấu đi",
-            "detail": f"Chuyển sang vùng kém hơn so với {month_label(prev['month'])} (cùng ngưỡng T = "
-            f"{d['threshold']:g}%).",
+            "detail": f"Chuyển sang vùng kém hơn so với {month_label(prev['month'])} (cùng ngưỡng "
+            f"{t_label(d)}).",
         })  # fmt: skip
     if k["n_unmapped"]:
         recs.append({

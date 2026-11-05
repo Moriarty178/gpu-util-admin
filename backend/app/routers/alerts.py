@@ -22,6 +22,7 @@ XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     response_model=AlertsOut,
     summary="Bảng cảnh báo theo ngưỡng T + ma trận vùng × đầu mối + mẫu hình + card theo vùng",
     description="Luật vùng (gpu_core): gpu<=T và mem<=T → Nguy hiểm; đúng 1 trong 2 <=T → Cảnh báo; cả 2 >T → An toàn. "
+    "`zone_metric=gpu|mem` (hoặc cài đặt) → chỉ xét 1 chỉ số: chỉ số đó <=T → Nguy hiểm, còn lại → An toàn. "
     "`zones` để trống = mọi vùng (giao diện mặc định lọc Nguy hiểm). "
     "Sắp xếp mặc định: vùng (Nguy hiểm trước), rồi GPU TB tăng dần.",
     responses=errors(422),

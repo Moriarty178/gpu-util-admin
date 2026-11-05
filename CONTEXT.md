@@ -75,6 +75,15 @@ gpu_avg <= T  VÀ mem_avg <= T   → Nguy hiểm  (danger)   ứng viên thu h�
 cả hai > T                      → An toàn    (safe)
 ```
 
+**Tùy chọn "Áp T cho"** (cài đặt `zone_metric`, chọn tạm được khi xem — người dùng chốt 05/11/2026, PLAN §14.9). Mặc định
+`both` = luật trên. `gpu` / `mem` = chỉ xét 1 chỉ số, **2 vùng**, bỏ qua hẳn chỉ số kia:
+
+```
+chỉ số đã chọn <= T  → Nguy hiểm      chỉ số đã chọn > T → An toàn      (không có Cảnh báo)
+vd compute 15 / memory 75, T = 40:  both → Cảnh báo · gpu → Nguy hiểm · mem → An toàn
+```
+Mẫu hình (bảng dưới) vẫn mô tả theo cả 2 chỉ số; ngày nguy hiểm / streak đếm theo chế độ đang áp.
+
 **Mẫu hình** (dùng `gpu_peak` = max mẫu ngày trong khoảng):
 
 | pattern | Điều kiện | Ý nghĩa / khuyến nghị |
@@ -90,7 +99,7 @@ cả hai > T                      → An toàn    (safe)
 vì đây mới là luật VTNet thực sự dùng để thu hồi (suy luận, chưa được VTNet xác nhận chính thức).
 
 **Dữ liệu mỏng**: `coverage = số ngày có mẫu / số ngày trong khoảng < 0.8`.
-**Streak thấp tải**: số ngày liên tiếp gần nhất (tính từ ngày cuối có dữ liệu) mà gpu ≤ T và mem ≤ T.
+**Streak thấp tải**: số ngày liên tiếp gần nhất (tính từ ngày cuối có dữ liệu) mà gpu ≤ T và mem ≤ T (chế độ 1 chỉ số: chỉ số đó ≤ T).
 
 Hạn chế phải luôn hiển thị: file chỉ có GPU, **không có CPU/RAM** → chỉ là xấp xỉ luật thu hồi của VTNet.
 

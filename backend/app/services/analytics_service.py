@@ -14,7 +14,7 @@ import logging
 import threading
 from collections import OrderedDict
 from collections.abc import Callable, Hashable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from typing import Any, Literal
 
@@ -35,6 +35,7 @@ UNMAPPED = "_unmapped"
 DEFAULT_WINDOW_DAYS = 28  # khoảng xem mặc định = 4 tuần gần nhất có dữ liệu (người dùng chốt 04/11/2026, PLAN §14.8)
 log = logging.getLogger(__name__)
 Granularity = Literal["day", "week", "month"]
+ZoneMetric = Literal["both", "gpu", "mem"]  # = gpu_core.ZONE_METRICS — chỉ số áp ngưỡng T (PLAN §14.9)
 Weight = Literal["server", "gpu"]
 
 ITEM_FIELDS = [
@@ -76,11 +77,16 @@ class Context:
     def days_in_range(self) -> int:
         return (self.end - self.start).days + 1
 
+    @property
+    def zone_metric(self) -> str:
+        return self.params.zone_metric
+
     def as_params(self) -> dict[str, Any]:
         out: dict[str, Any] = {
             "start": self.start.isoformat(),
             "end": self.end.isoformat(),
             "threshold": self.threshold,
+            "zone_metric": self.zone_metric,
             "days_in_range": self.days_in_range,
             "clamped": self.requested is not None,
         }
@@ -152,6 +158,7 @@ def rule_params(settings: dict[str, Any]) -> g.RuleParams:
         bursty_peak=float(settings.get("bursty_peak", d.bursty_peak)),
         high_load=float(settings.get("high_load", d.high_load)),
         thin_coverage=float(settings.get("thin_coverage", d.thin_coverage)),
+        zone_metric=str(settings.get("zone_metric", d.zone_metric)),
     )
 
 
@@ -160,12 +167,18 @@ def default_range(lo: date, hi: date) -> tuple[date, date]:
     return max(lo, hi - timedelta(days=DEFAULT_WINDOW_DAYS - 1)), hi
 
 
-def resolve_context(s: Session, start: date | None, end: date | None, threshold: float | None) -> Context:
+def resolve_context(
+    s: Session, start: date | None, end: date | None, threshold: float | None, zone_metric: str | None = None
+) -> Context:
     """Khoảng mặc định = 4 tuần gần nhất có dữ liệu; T = cài đặt. Khoảng chọn vượt ra ngoài ngày có dữ liệu → CẮT về
     [ngày đầu, ngày cuối có dữ liệu] (người dùng chốt 04/11/2026): mẫu số "ngày trong khoảng" (độ phủ → dữ liệu mỏng,
     ngày nguy hiểm…) chỉ tính ngày đã có thể có số liệu — xem 01–31/10 khi mới có tới 18/10 không gắn mỏng cả loạt.
-    Khoảng hoàn toàn ngoài dữ liệu → giữ nguyên (kết quả rỗng)."""
+    Khoảng hoàn toàn ngoài dữ liệu → giữ nguyên (kết quả rỗng).
+    `zone_metric` (chọn khi xem) ghi đè cài đặt "áp ngưỡng T cho chỉ số nào"; None = theo cài đặt."""
     settings = settings_repo.all_values(s)
+    params = rule_params(settings)
+    if zone_metric is not None and zone_metric != params.zone_metric:
+        params = replace(params, zone_metric=zone_metric)
     t = float(threshold if threshold is not None else settings.get("default_threshold", g.DEFAULT_THRESHOLD))
     lo, hi = util_repo.data_range(s)
     if lo is None or hi is None:
@@ -180,7 +193,7 @@ def resolve_context(s: Session, start: date | None, end: date | None, threshold:
     requested = None
     if lo is not None and hi is not None and start <= hi and end >= lo and (start < lo or end > hi):
         requested, start, end = (start, end), max(start, lo), min(end, hi)
-    return Context(start=start, end=end, threshold=t, params=rule_params(settings), has_data=lo is not None,
+    return Context(start=start, end=end, threshold=t, params=params, has_data=lo is not None,
                    requested=requested)  # fmt: skip
 
 
@@ -639,7 +652,7 @@ def server_timeseries(b: Bundle, ip: str, scope: Scope, granularity: Granularity
             "date": d.date().isoformat(),
             "gpu": float(r.gpu),
             "mem": float(r.mem),
-            "zone": g.classify_zone(float(r.gpu), float(r.mem), t),
+            "zone": g.classify_zone(float(r.gpu), float(r.mem), t, b.ctx.zone_metric),
             "vtnet_low_load": g.vtnet_low_load(float(r.gpu), float(r.mem), b.ctx.params.vtnet_low_load_t),
             "n_days": int(r.n_days),
         }

@@ -14,7 +14,7 @@ import { ZoneTag } from '../components/Tags'
 import { COMPARE_COLORS, fmtDelta, MAX_COMPARE_SERVERS, MOVEMENT_META, MOVEMENT_ORDER, safeLabel } from '../lib/compare'
 import { fmtDate, fmtInt, fmtPct, fmtPeriodLabel, fmtRange } from '../lib/format'
 import { vi } from '../lib/vi'
-import { SERIES, ZONE_META, ZONE_ORDER, zoneLabel } from '../lib/zones'
+import { SERIES, thresholdLabel, ZONE_META, ZONE_ORDER, zoneLabel } from '../lib/zones'
 import { globalSearch } from '../store/filters'
 import { useFilters, usePageParam, useSetPageParams } from '../store/useFilters'
 
@@ -140,7 +140,7 @@ function PeriodsTab() {
       {header}
       <Typography.Text type="secondary">
         {fmtRange(data.a.params.start, data.a.params.end)} → {fmtRange(data.b.params.start, data.b.params.end)} ·{' '}
-        {vi.filters.threshold} = {data.threshold}%
+        {vi.filters.threshold}: {thresholdLabel(data.threshold, data.zone_metric)}
       </Typography.Text>
       <KpiPair a={data.a} b={data.b} />
       <Card size="small" title={t.movement}>

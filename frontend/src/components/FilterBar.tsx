@@ -7,7 +7,7 @@ import { useAuth } from '../auth/session'
 import { fmtPeriodLabel, fmtRange } from '../lib/format'
 import { useDebouncedValue } from '../lib/useDebounced'
 import { vi } from '../lib/vi'
-import { UNMAPPED } from '../lib/zones'
+import { isZoneMetric, UNMAPPED, ZONE_METRIC_META, ZONE_METRICS, type ZoneMetric } from '../lib/zones'
 import { clampToData, EMPTY_FILTERS, type Preset, presetRange } from '../store/filters'
 import { useFilters } from '../store/useFilters'
 
@@ -27,6 +27,9 @@ export function FilterBar() {
   const [t, setT] = useDebouncedValue<number | null>(f.threshold ?? null, (v) =>
     setFilters({ threshold: v === null || v === defaultT ? undefined : v }),
   )
+  const sm = meta?.settings.zone_metric
+  const defaultMetric: ZoneMetric = isZoneMetric(sm) ? sm : 'both'
+  const metric = f.zone_metric ?? defaultMetric
 
   const today = dayjs().format('YYYY-MM-DD')
   const dataEnd = meta?.data_range.end ?? today
@@ -51,7 +54,11 @@ export function FilterBar() {
   ]
   const def = meta?.default_range
   const shown: [Dayjs, Dayjs] | null =
-    f.start && f.end ? [dayjs(f.start), dayjs(f.end)] : def?.start && def.end ? [dayjs(def.start), dayjs(def.end)] : null
+    f.start && f.end
+      ? [dayjs(f.start), dayjs(f.end)]
+      : def?.start && def.end
+        ? [dayjs(def.start), dayjs(def.end)]
+        : null
   const clamped = clampToData(f.start, f.end, meta?.data_range.start, meta?.data_range.end)
 
   return (
@@ -65,7 +72,10 @@ export function FilterBar() {
           onChange={(v) =>
             setFilters(
               v && v[0] && v[1]
-                ? { start: v[0].format('YYYY-MM-DD'), end: v[1].format('YYYY-MM-DD') }
+                ? {
+                    start: v[0].format('YYYY-MM-DD'),
+                    end: v[1].format('YYYY-MM-DD'),
+                  }
                 : { start: undefined, end: undefined },
             )
           }
@@ -74,7 +84,9 @@ export function FilterBar() {
         <Tooltip title={vi.filters.calendarNote}>
           <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
         </Tooltip>
-        {!f.start && def?.start && def.end && <Tag color="blue">{vi.filters.viewingDefault(fmtRange(def.start, def.end))}</Tag>}
+        {!f.start && def?.start && def.end && (
+          <Tag color="blue">{vi.filters.viewingDefault(fmtRange(def.start, def.end))}</Tag>
+        )}
         {clamped && <Tag color="gold">{vi.filters.clamped(fmtRange(clamped[0], clamped[1]))}</Tag>}
         <Select
           mode="multiple"
@@ -85,7 +97,11 @@ export function FilterBar() {
           value={ownOnly ? [me.owner_key ?? ''] : f.owner}
           disabled={ownOnly}
           onChange={(v: string[]) => setFilters({ owner: v })}
-          options={ownOnly ? opts([me.owner_key ?? '']) : [...opts(meta?.owners ?? []), { value: UNMAPPED, label: vi.filters.unmapped }]}
+          options={
+            ownOnly
+              ? opts([me.owner_key ?? ''])
+              : [...opts(meta?.owners ?? []), { value: UNMAPPED, label: vi.filters.unmapped }]
+          }
         />
         <Select
           mode="multiple"
@@ -132,9 +148,34 @@ export function FilterBar() {
             aria-label={vi.filters.threshold}
           />
         </Space.Compact>
+        <Space.Compact>
+          <Tooltip title={vi.filters.zoneMetricHint}>
+            <Button disabled tabIndex={-1} style={{ color: 'inherit', cursor: 'default' }}>
+              {vi.filters.zoneMetric}
+            </Button>
+          </Tooltip>
+          <Select<ZoneMetric>
+            value={metric}
+            onChange={(v) => setFilters({ zone_metric: v === defaultMetric ? undefined : v })}
+            options={ZONE_METRICS.map((m) => ({
+              value: m,
+              label: ZONE_METRIC_META[m].label,
+            }))}
+            style={{ width: 190 }}
+            aria-label={vi.filters.zoneMetric}
+          />
+        </Space.Compact>
         <Button
           icon={<UndoOutlined />}
-          onClick={() => setFilters({ ...EMPTY_FILTERS, start: undefined, end: undefined, threshold: undefined })}
+          onClick={() =>
+            setFilters({
+              ...EMPTY_FILTERS,
+              start: undefined,
+              end: undefined,
+              threshold: undefined,
+              zone_metric: undefined,
+            })
+          }
         >
           {vi.filters.reset}
         </Button>

@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from .rules import (DEFAULT_PARAMS, DEFAULT_THRESHOLD, RuleParams, assessment_text, classify_pattern,
-                    classify_zone, vtnet_low_load)
+                    classify_zone, is_danger, vtnet_low_load)
 
 
 def _clip(raw: pd.DataFrame, start=None, end=None, ips: Optional[Iterable[str]] = None) -> pd.DataFrame:
@@ -50,11 +50,11 @@ def days_in_range(start, end) -> int:
     return int((pd.Timestamp(end).normalize() - pd.Timestamp(start).normalize()).days) + 1
 
 
-def low_load_streak(daily: pd.DataFrame, threshold: float) -> int:
-    """Số ngày LIÊN TIẾP gần nhất (tính từ ngày cuối có dữ liệu) mà gpu<=T và mem<=T."""
+def low_load_streak(daily: pd.DataFrame, threshold: float, metric: str = "both") -> int:
+    """Số ngày LIÊN TIẾP gần nhất (tính từ ngày cuối có dữ liệu) rơi vào vùng Nguy hiểm (mặc định gpu<=T và mem<=T)."""
     n = 0
     for g, m in zip(daily["gpu"].to_numpy()[::-1], daily["mem"].to_numpy()[::-1]):
-        if g <= threshold and m <= threshold:
+        if is_danger(g, m, threshold, metric):
             n += 1
         else:
             break
@@ -73,7 +73,7 @@ def server_stats(raw: pd.DataFrame, start=None, end=None, threshold: float = DEF
     span = days_in_range(s, e)
     # Tính gộp theo nhóm (cùng định nghĩa với bản lặp từng server cũ — đã đối chiếu, nhanh hơn ~10 lần)
     df = df.sort_values(["ip", "ts"], kind="stable").reset_index(drop=True)
-    df["_low"] = (df["gpu"] <= threshold) & (df["mem"] <= threshold)
+    df["_low"] = is_danger(df["gpu"], df["mem"], threshold, params.zone_metric)   # ngày nguy hiểm theo chế độ đang áp
     df["_day"] = df["ts"].dt.normalize()
     gb = df.groupby("ip", sort=True)
     agg = gb.agg(gpu_avg=("gpu", "mean"), mem_avg=("mem", "mean"), gpu_peak=("gpu", "max"),
@@ -81,7 +81,7 @@ def server_stats(raw: pd.DataFrame, start=None, end=None, threshold: float = DEF
                  first_ts=("ts", "min"), last_ts=("ts", "max"), _n=("ts", "size"))
     agg["gpu_p95"] = gb["gpu"].quantile(0.95)
     agg["gpu_type"] = gb["gpu_type"].last()                # mẫu mới nhất có gpu_type (bỏ qua rỗng)
-    # streak thấp tải = số ngày liên tiếp tính từ ngày cuối có dữ liệu mà gpu<=T và mem<=T
+    # streak thấp tải = số ngày nguy hiểm liên tiếp tính từ ngày cuối có dữ liệu
     pos = gb.cumcount()
     last_not_low = pos.where(~df["_low"]).groupby(df["ip"]).max()
     agg["low_streak"] = (agg["_n"] - (last_not_low.reindex(agg.index).fillna(-1) + 1)).astype(int)
@@ -98,7 +98,7 @@ def server_stats(raw: pd.DataFrame, start=None, end=None, threshold: float = DEF
             days=days, days_in_range=span, coverage=cov,
             low_streak=int(r["low_streak"]),
             danger_days=int(r["danger_days"]),
-            zone=classify_zone(gpu, mem, threshold),
+            zone=classify_zone(gpu, mem, threshold, params.zone_metric),
             pattern=classify_pattern(gpu, mem, threshold, peak, params),
             vtnet_low_load=vtnet_low_load(gpu, mem, params.vtnet_low_load_t),
             thin_data=bool(cov < params.thin_coverage),

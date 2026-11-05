@@ -40,6 +40,8 @@ export const vi = {
     cluster: 'Cụm',
     managedBy: 'Quản lý bằng',
     threshold: 'Ngưỡng T',
+    zoneMetric: 'Áp T cho',
+    zoneMetricHint: 'Cả 2 = 3 vùng (luật gốc). Chỉ compute / chỉ memory = 2 vùng: chỉ số đó ≤ T → Nguy hiểm, còn lại → An toàn. Mặc định theo Cài đặt.',
     all: 'Tất cả',
     reset: 'Mặc định',
     unmapped: 'Chưa có trong thống kê',
@@ -52,7 +54,8 @@ export const vi = {
     gpuAvg: 'GPU TB',
     memAvg: 'VRAM TB',
     servers: 'Server có số liệu',
-    danger: (t: number) => `Nguy hiểm (T=${t}%)`,
+    danger: (t: number, metric?: string) =>
+      `Nguy hiểm (T=${t}%${metric === 'gpu' ? ', compute' : metric === 'mem' ? ', memory' : ''})`,
     vtnet: 'Dưới ngưỡng VTNet',
     dangerCards: 'Card nguy hiểm',
     mappedNote: (m: number, u: number) => `${m} có trong thống kê · ${u} chưa có`,
@@ -451,7 +454,8 @@ export const vi = {
   },
   importChecks: {
     allClear: 'Không phát hiện vấn đề nào.',
-    previewTitle: (t: number) => `Xem trước tác động (T = ${t}%)`,
+    previewTitle: (t: number, metric?: string) =>
+      `Xem trước tác động (T = ${t}%${metric === 'gpu' ? ', chỉ compute' : metric === 'mem' ? ', chỉ memory' : ''})`,
     vsPrev: (label: string) => `so với ${label}`,
     prevValue: (v: string) => `kỳ trước: ${v}`,
     points: 'điểm %',

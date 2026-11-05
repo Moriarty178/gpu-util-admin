@@ -13,10 +13,13 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import gpu_core as g
 from app.db.models import AppSetting, AuditLog
 from app.db.seed import DEFAULT_SETTINGS
 from app.errors import ServiceError
 from app.services.auth_service import audit, utcnow
+
+LABEL = {"both": "Cả compute và memory", "gpu": "Chỉ compute", "mem": "Chỉ memory"}
 
 
 @dataclass(frozen=True)
@@ -27,11 +30,25 @@ class SettingSpec:
     maximum: float
     integer: bool = False
     unit: str = "%"
+    choices: tuple[tuple[str, str], ...] = ()  # (giá trị, nhãn) — có = cài đặt dạng lựa chọn thay vì số
+
+    @property
+    def kind(self) -> str:
+        return "choice" if self.choices else "number"
 
 
 SPECS: dict[str, SettingSpec] = {
     "default_threshold": SettingSpec(
         "Ngưỡng T mặc định", "Ngưỡng vùng khi chưa chọn trên giao diện (luật <= T)", 0, 100
+    ),
+    "zone_metric": SettingSpec(
+        "Áp ngưỡng T cho",
+        "Cả 2 chỉ số = 3 vùng (luật gốc). Chỉ compute / chỉ memory = 2 vùng: chỉ số đó <= T → Nguy hiểm, còn lại → An "
+        "toàn (bỏ qua chỉ số kia). Người xem vẫn đổi tạm được trên thanh bộ lọc.",
+        0,
+        0,
+        unit="",
+        choices=tuple((m, LABEL[m]) for m in g.ZONE_METRICS),
     ),
     "vtnet_low_load_t": SettingSpec("Ngưỡng cờ THẤP TẢI VTNet", "gpu < X và mem < X (so sánh < chặt)", 0, 100),
     "bursty_peak": SettingSpec("Đỉnh bursty", "Nguy hiểm nhưng đỉnh util ≥ X → 'bursty' thay vì 'idle thật'", 0, 100),
@@ -61,6 +78,8 @@ def list_settings(s: Session) -> list[dict[str, Any]]:
                 "max": spec.maximum,
                 "integer": spec.integer,
                 "unit": spec.unit,
+                "kind": spec.kind,
+                "choices": [{"value": v, "label": lab} for v, lab in spec.choices],
                 "updated_by": r.updated_by if r is not None else None,
                 "updated_at": r.updated_at if r is not None else None,
             }
@@ -71,11 +90,17 @@ def list_settings(s: Session) -> list[dict[str, Any]]:
 def update_settings(s: Session, actor: str, changes: dict[str, Any]) -> list[dict[str, Any]]:
     if not changes:
         raise ServiceError(422, "Không có thay đổi nào.")
-    clean: dict[str, float | int] = {}
+    clean: dict[str, float | int | str] = {}
     for key, value in changes.items():
         spec = SPECS.get(key)
         if spec is None:
             raise ServiceError(422, f"Không có cài đặt '{key}'.")
+        if spec.choices:
+            allowed = [v for v, _ in spec.choices]
+            if value not in allowed:
+                raise ServiceError(422, f"{spec.label}: phải là một trong {', '.join(allowed)}.")
+            clean[key] = str(value)
+            continue
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise ServiceError(422, f"{spec.label}: phải là số.")
         if not spec.minimum <= value <= spec.maximum:

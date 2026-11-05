@@ -11,7 +11,7 @@ from fastapi.responses import Response
 from app.deps import ScopeDep, SessionDep, UserDep
 from app.errors import ServiceError
 from app.reports import monthly_deck
-from app.routers.analytics_common import CacheDep, Threshold, errors
+from app.routers.analytics_common import CacheDep, Threshold, ZoneMetricQ, errors
 from app.schemas.report import MONTH_PATTERN, MonthlyReportIn, MonthlyReportOut
 from app.services import report_service as svc
 from app.services.auth_service import audit
@@ -35,8 +35,9 @@ def monthly(
     scope: ScopeDep,
     month: Annotated[str | None, Query(pattern=MONTH_PATTERN, description="YYYY-MM")] = None,
     threshold: Threshold = None,
+    zone_metric: ZoneMetricQ = None,
 ) -> MonthlyReportOut:
-    return MonthlyReportOut.model_validate(svc.monthly(s, cache, month, threshold, scope))
+    return MonthlyReportOut.model_validate(svc.monthly(s, cache, month, threshold, scope, zone_metric))
 
 
 @router.post(
@@ -46,7 +47,7 @@ def monthly(
     responses={200: {"content": {PPTX_MEDIA: {}}}, **errors(404, 409, 422)},
 )
 def monthly_pptx(body: MonthlyReportIn, s: SessionDep, cache: CacheDep, scope: ScopeDep, user: UserDep) -> Response:
-    data = svc.monthly(s, cache, body.month, body.threshold, scope)
+    data = svc.monthly(s, cache, body.month, body.threshold, scope, body.zone_metric)
     if not data["completeness"]["complete"]:
         raise ServiceError(409, svc.incomplete_message(data["month"], data["completeness"]), type_="month_incomplete")
     sug = data["suggestion"]
@@ -58,7 +59,7 @@ def monthly_pptx(body: MonthlyReportIn, s: SessionDep, cache: CacheDep, scope: S
     )
     content = monthly_deck.build(data, message, recs, today())
     audit(s, user.username, "report_exported", data["month"], threshold=data["threshold"],
-          scope_owner=data["scope_owner"], edited=bool(body.message or body.recommendations))  # fmt: skip
+          zone_metric=data["zone_metric"], scope_owner=data["scope_owner"], edited=bool(body.message or body.recommendations))  # fmt: skip
     s.commit()
     name = f"Bao_cao_GPU_thang_{int(data['month'][5:7])}_{data['month'][:4]}.pptx"
     disposition = f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"

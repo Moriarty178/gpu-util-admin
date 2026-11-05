@@ -16,6 +16,7 @@ from pptx.util import Inches
 
 from app.reports import ttcn_style as st
 from app.services.analytics_service import UNMAPPED
+from app.services.report_service import t_label
 
 ZONES = ("danger", "warning", "safe")
 UNMAPPED_LABEL = "Chưa có trong thống kê"
@@ -52,7 +53,7 @@ def build(data: dict[str, Any], message: str, recs: Sequence[tuple[str, str]], t
     def new() -> Any:
         return prs.slides.add_slide(blank)
 
-    label, t = data["label"], data["threshold"]
+    label, tl = data["label"], t_label(data)
     scope = f" · Phạm vi: {data['scope_owner']}" if data.get("scope_owner") else ""
     period = f"{ddmm(data['start'])}–{ddmm(data['end'])}"
     footer = f"TTCN-VTT · Lập từ GPU Util Admin ngày {today:%d/%m/%Y}{scope}"
@@ -60,7 +61,7 @@ def build(data: dict[str, Any], message: str, recs: Sequence[tuple[str, str]], t
     # 1. Bìa
     st.cover(
         new(), kicker_t="Báo cáo giao ban tháng", title_t=f"Tình hình sử dụng GPU {label}",
-        subtitle=f"Số liệu tải GPU VTNet {period} · Ngưỡng T = {t:g}%", message=message, footer=footer,
+        subtitle=f"Số liệu tải GPU VTNet {period} · Ngưỡng {tl}", message=message, footer=footer,
         chips=[short(m["month"]) for m in data["trend"]] or [short(data["month"])],
     )  # fmt: skip
 
@@ -72,7 +73,7 @@ def build(data: dict[str, Any], message: str, recs: Sequence[tuple[str, str]], t
 
     # 7. Kết luận & kiến nghị
     st.closing(new(), kicker_t="Kết luận & kiến nghị", message=message, recs=list(recs)[:3],
-               footer=f"Vùng theo ngưỡng T = {t:g}% trên TB tháng của từng server · {footer}")  # fmt: skip
+               footer=f"Vùng theo ngưỡng {tl} trên TB tháng của từng server · {footer}")  # fmt: skip
     buf = io.BytesIO()
     prs.save(buf)
     return buf.getvalue()
@@ -85,7 +86,7 @@ def _overview(s: Any, d: dict[str, Any]) -> None:
     st.title(s, f"Tải GPU {d['label']}: TB {pct(k['gpu_avg'])} GPU, {pct(k['mem_avg'])} VRAM")
     st.card(s, 0.5, 1.28, 4.6, 3.35)
     st.donut_chart(s, 0.62, 1.38, 4.36, 3.15, [st.ZONE_LABEL[x] for x in ZONES], [z[x] for x in ZONES],
-                   [st.ZONE_COLOR[x] for x in ZONES], title_t=f"Số server theo vùng (T = {d['threshold']:g}%)")  # fmt: skip
+                   [st.ZONE_COLOR[x] for x in ZONES], title_t=f"Số server theo vùng ({t_label(d)})")  # fmt: skip
     vs = f"so với {short(prev['month'])}" if prev else ""
     g_note = f"{pts(k['gpu_avg'] - prev['gpu_avg'])} điểm {vs}" if prev and prev["gpu_avg"] is not None else ""
     m_note = f"{pts(k['mem_avg'] - prev['mem_avg'])} điểm {vs}" if prev and prev["mem_avg"] is not None else ""
@@ -150,7 +151,7 @@ def _compare(s: Any, d: dict[str, Any]) -> None:
     for i, (key, lab, ic, col) in enumerate(MOVE_META):
         x = 0.5 + (i % 2) * (w + gap)
         y = 1.28 + (i // 2) * (h + gap)
-        st.stat(s, x, y, w, h, str(c[key]), lab, "" if i else f"cùng T = {d['threshold']:g}%", ic, col)
+        st.stat(s, x, y, w, h, str(c[key]), lab, "" if i else f"cùng {t_label(d)}", ic, col)
     st.card(s, 4.65, 1.28, 4.85, 3.35)
     st.card_title(s, 4.85, 1.42, 4.5, "Chuyển vùng (server)", st.NAVY)
     rows_from = [*ZONES, "new"]
@@ -186,7 +187,7 @@ def _owners(s: Any, d: dict[str, Any]) -> None:
     st.card(s, 0.5, 1.28, 6.0, 3.35)
     if cats:
         st.bar_chart(s, 0.6, 1.36, 5.8, 3.2, cats, [(st.ZONE_LABEL[z], [val(z, c) for c in cats]) for z in ZONES],
-                     title_t=f"Số server mỗi vùng theo đầu mối (T = {d['threshold']:g}%)", val_title="Server",
+                     title_t=f"Số server mỗi vùng theo đầu mối ({t_label(d)})", val_title="Server",
                      colors=[st.ZONE_COLOR[z] for z in ZONES], gap=70)  # fmt: skip
     else:
         st.placeholder(s, "[Cần bổ sung số liệu] — chưa có server nào trong phạm vi.", 0.8, 2.7, 5.4)

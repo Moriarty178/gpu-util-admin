@@ -57,7 +57,7 @@ def loaded(client: TestClient) -> TestClient:
 
 def test_fleet_timeseries_day_server(loaded: TestClient) -> None:
     ts = get(loaded, "/fleet/timeseries")  # mặc định: 4 tuần gần nhất, cắt về dữ liệu (chỉ có 01–05/10)
-    assert ts["params"] == {"start": "2026-10-01", "end": "2026-10-05", "threshold": 40.0, "days_in_range": 5,
+    assert ts["params"] == {"start": "2026-10-01", "end": "2026-10-05", "threshold": 40.0, "zone_metric": "both", "days_in_range": 5,
                             "clamped": False, "requested_start": None, "requested_end": None}  # fmt: skip
     assert [p["date"] for p in ts["points"]] == [f"2026-10-0{d}" for d in range(1, 6)]
     d1, d5 = ts["points"][0], ts["points"][-1]

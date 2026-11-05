@@ -92,7 +92,7 @@ def test_replay_all_batch_states(
         before = api_view(c)
     rep = replay(src_engine, dst_engine, source_uploads=src_settings.upload_path, target_settings=dst_settings)
     assert list(rep.id_map) == [1, 2, 3, 6] and rep.skipped == {"failed": 1, "discarded": 1}
-    assert (rep.links, rep.settings, rep.users, rep.users_kept) == (8, 6, 1, [])  # tài khoản admin của nguồn
+    assert (rep.links, rep.settings, rep.users, rep.users_kept) == (8, 7, 1, [])  # tài khoản admin của nguồn
     assert rep.audit > 0  # nhật ký đăng nhập + nhập lô của nguồn
     assert verify(src_engine, dst_engine) == []
 

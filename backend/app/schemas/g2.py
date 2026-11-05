@@ -164,6 +164,7 @@ class CompareOut(BaseModel):
     a: PeriodKpi = Field(description="Kỳ A (trước)")
     b: PeriodKpi = Field(description="Kỳ B (sau)")
     threshold: float
+    zone_metric: Literal["both", "gpu", "mem"] = "both"
     counts: dict[str, int] = Field(description="worsened / improved / same / new / gone")
     matrix: dict[str, dict[str, int]] = Field(description="vùng kỳ A (+new) → vùng kỳ B (+gone) → số server")
     items: list[CompareItem]
@@ -184,6 +185,7 @@ class TrendMonth(BaseModel):
 
 class TrendOut(BaseModel):
     threshold: float | None
+    zone_metric: Literal["both", "gpu", "mem"] | None = None
     granularity: Literal["month", "week"] = "month"
     months: list[TrendMonth] = Field(description="Các kỳ (tháng hoặc tuần theo `granularity`), cũ → mới")
 

@@ -1,5 +1,5 @@
 import { UndoOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, InputNumber, Popconfirm, Space, Table, Typography } from 'antd'
+import { Alert, App, Button, Card, InputNumber, Popconfirm, Select, Space, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
 import { errorMessage } from '../api/client'
@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const q = useSettingsList()
   const save = useSaveSettings()
   const { message } = App.useApp()
-  const [draft, setDraft] = useState<Record<string, number>>({})
+  const [draft, setDraft] = useState<Record<string, number | string>>({})
 
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   if (!q.data) return <Loading />
@@ -52,19 +52,28 @@ export default function SettingsPage() {
       title: t.value,
       key: 'value',
       width: 180,
-      render: (_: unknown, r) => (
-        <InputNumber
-          min={r.min}
-          max={r.max}
-          step={r.integer ? 1 : r.max <= 1 ? 0.05 : 1}
-          precision={r.integer ? 0 : undefined}
-          value={draft[r.key] ?? r.value}
-          onChange={(v) => typeof v === 'number' && setDraft((d) => ({ ...d, [r.key]: v }))}
-          addonAfter={r.unit || undefined}
-          style={{ width: 150 }}
-          aria-label={r.label}
-        />
-      ),
+      render: (_: unknown, r) =>
+        r.kind === 'choice' ? (
+          <Select<string>
+            value={String(draft[r.key] ?? r.value)}
+            onChange={(v) => setDraft((d) => ({ ...d, [r.key]: v }))}
+            options={r.choices}
+            style={{ width: 200 }}
+            aria-label={r.label}
+          />
+        ) : (
+          <InputNumber
+            min={r.min}
+            max={r.max}
+            step={r.integer ? 1 : r.max <= 1 ? 0.05 : 1}
+            precision={r.integer ? 0 : undefined}
+            value={draft[r.key] ?? r.value}
+            onChange={(v) => typeof v === 'number' && setDraft((d) => ({ ...d, [r.key]: v }))}
+            addonAfter={r.unit || undefined}
+            style={{ width: 150 }}
+            aria-label={r.label}
+          />
+        ),
     },
     {
       title: t.default,
@@ -73,11 +82,15 @@ export default function SettingsPage() {
       render: (_: unknown, r) => (
         <Space>
           <span>
-            {r.default}
+            {r.kind === 'choice' ? (r.choices.find((c) => c.value === r.default)?.label ?? r.default) : r.default}
             {r.unit}
           </span>
           {(draft[r.key] ?? r.value) !== r.default && (
-            <Button size="small" icon={<UndoOutlined />} onClick={() => setDraft((d) => ({ ...d, [r.key]: r.default }))}>
+            <Button
+              size="small"
+              icon={<UndoOutlined />}
+              onClick={() => setDraft((d) => ({ ...d, [r.key]: r.default }))}
+            >
               {t.reset}
             </Button>
           )}
@@ -88,7 +101,9 @@ export default function SettingsPage() {
       title: t.lastChange,
       key: 'updated',
       render: (_: unknown, r) =>
-        r.updated_by && r.updated_by !== 'seed' ? t.updated(r.updated_by, fmtDateTimeUtc(r.updated_at)) : t.neverUpdated,
+        r.updated_by && r.updated_by !== 'seed'
+          ? t.updated(r.updated_by, fmtDateTimeUtc(r.updated_at))
+          : t.neverUpdated,
     },
   ]
 
@@ -102,8 +117,13 @@ export default function SettingsPage() {
         <Table<SettingItem> size="small" rowKey="key" columns={columns} dataSource={items} pagination={false} />
       </Card>
       <Space>
-        <Popconfirm title={t.confirm} okText={vi.imports.confirmOk} cancelText={vi.imports.confirmCancel}
-          onConfirm={() => void submit()} disabled={!n}>
+        <Popconfirm
+          title={t.confirm}
+          okText={vi.imports.confirmOk}
+          cancelText={vi.imports.confirmCancel}
+          onConfirm={() => void submit()}
+          disabled={!n}
+        >
           <Button type="primary" disabled={!n} loading={save.isPending}>
             {t.save} {n ? `(${n})` : ''}
           </Button>

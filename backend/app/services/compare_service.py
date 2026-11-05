@@ -72,6 +72,7 @@ def compare(
     threshold: float | None,
     f: Filters,
     scope: Scope,
+    zone_metric: str | None = None,
 ) -> dict[str, Any]:
     if None in (*a, *b):
         d = default_periods(s)
@@ -79,8 +80,8 @@ def compare(
             raise ServiceError(422, "Cần chọn 2 khoảng ngày (mới có dưới 2 kỳ file VTNet để chọn sẵn).")
         a = (a[0] or d[0][0], a[1] or d[0][1])
         b = (b[0] or d[1][0], b[1] or d[1][1])
-    ctx_a = resolve_context(s, a[0], a[1], threshold)
-    ctx_b = resolve_context(s, b[0], b[1], threshold)
+    ctx_a = resolve_context(s, a[0], a[1], threshold, zone_metric)
+    ctx_b = resolve_context(s, b[0], b[1], threshold, zone_metric)
     ba, bb = get_bundle(s, cache, ctx_a), get_bundle(s, cache, ctx_b)
     sa = filter_servers(apply_scope(ba.servers, scope), f)
     sb = filter_servers(apply_scope(bb.servers, scope), f)
@@ -112,6 +113,7 @@ def compare(
         "a": _kpi(ba, f, scope),
         "b": _kpi(bb, f, scope),
         "threshold": ctx_b.threshold,
+        "zone_metric": ctx_b.zone_metric,
         "counts": counts,
         "matrix": matrix,
         "items": items,
@@ -140,13 +142,14 @@ def _months(start: date, end: date) -> list[tuple[date, date]]:
 
 def trend_zones(
     s: Session, cache: AnalyticsCache, start: date | None, end: date | None, threshold: float | None, f: Filters,
-    scope: Scope, granularity: TrendGranularity = "month",
+    scope: Scope, granularity: TrendGranularity = "month", zone_metric: str | None = None,
 ) -> dict[str, Any]:  # fmt: skip
     """Số server từng vùng theo tháng hoặc tuần ISO (mỗi kỳ tính riêng: TB kỳ → vùng theo T). Mặc định = toàn bộ dữ liệu.
     Kỳ đầu/cuối cắt theo ngày có dữ liệu (`start`/`end`, `n_days`)."""
     lo, hi = util_repo.data_range(s)
     if lo is None or hi is None:
-        return {"threshold": resolve_context(s, None, None, threshold).threshold, "granularity": granularity,
+        ctx0 = resolve_context(s, None, None, threshold, zone_metric)
+        return {"threshold": ctx0.threshold, "zone_metric": ctx0.zone_metric, "granularity": granularity,
                 "months": []}  # fmt: skip
     start, end = max(start or lo, lo), min(end or hi, hi)
     if start > end:
@@ -156,10 +159,10 @@ def trend_zones(
     if len(periods) > limit:
         raise ServiceError(422, f"Khoảng quá dài — tối đa {limit} {'tuần' if granularity == 'week' else 'tháng'}.")
     out = []
-    t = None
+    t, metric = None, None
     for m_start, m_end in periods:
-        ctx: Context = resolve_context(s, m_start, m_end, threshold)
-        t = ctx.threshold
+        ctx: Context = resolve_context(s, m_start, m_end, threshold, zone_metric)
+        t, metric = ctx.threshold, ctx.zone_metric
         b = get_bundle(s, cache, ctx)
         srv = filter_servers(apply_scope(b.servers, scope), f)
         zones = {z: int((srv["zone"] == z).sum()) if not srv.empty else 0 for z in ZONES}
@@ -180,7 +183,7 @@ def trend_zones(
                 "mem_avg": fs["mem_avg"],
             }
         )
-    return {"threshold": t, "granularity": granularity, "months": out}
+    return {"threshold": t, "zone_metric": metric, "granularity": granularity, "months": out}
 
 
 def servers_timeseries(b: Bundle, ips: list[str], scope: Scope, granularity: Granularity) -> dict[str, Any]:

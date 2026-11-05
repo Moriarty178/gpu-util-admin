@@ -15,6 +15,9 @@ class AnalyticsParams(BaseModel):
     start: dt.date
     end: dt.date = Field(description="Tính trọn ngày")
     threshold: float = Field(description="Ngưỡng T (%)")
+    zone_metric: Literal["both", "gpu", "mem"] = Field(
+        "both", description="Áp T cho: both = cả 2 chỉ số (3 vùng) · gpu / mem = chỉ 1 chỉ số (Nguy hiểm / An toàn)"
+    )
     days_in_range: int
     clamped: bool = Field(False, description="Khoảng yêu cầu vượt ra ngoài ngày có dữ liệu → đã cắt về [start, end]")
     requested_start: dt.date | None = Field(None, description="Khoảng người dùng chọn (chỉ có khi clamped)")

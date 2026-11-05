@@ -58,7 +58,8 @@ def export_assessed(s: Session, b: Bundle, scope: Scope) -> tuple[bytes, str]:
             _redact(out, sheet, set(inv["ip"]))
         data = out.read_bytes()
     name = f"Danh_gia_tai_GPU_{scope.owner_key}_" if scope.kind == "owner" else "Danh_gia_tai_GPU_"
-    name += f"{ctx.start:%Y%m%d}-{ctx.end:%Y%m%d}_T{ctx.threshold:g}.xlsx"
+    metric = "" if ctx.zone_metric == "both" else f"_{ctx.zone_metric}"  # luật 1 chỉ số → ghi vào tên file
+    name += f"{ctx.start:%Y%m%d}-{ctx.end:%Y%m%d}_T{ctx.threshold:g}{metric}.xlsx"
     return data, name
 
 

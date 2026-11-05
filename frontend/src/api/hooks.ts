@@ -217,14 +217,17 @@ export function useNoteActions(ip: string, f: GlobalFilters) {
 
 export interface SettingItem {
   key: string
-  value: number
-  default: number
+  value: number | string
+  default: number | string
   label: string
   hint: string
   min: number
   max: number
   integer: boolean
   unit: string
+  /** 'choice' = chọn 1 trong `choices` (vd zone_metric) thay vì nhập số */
+  kind: 'number' | 'choice'
+  choices: { value: string; label: string }[]
   updated_by: string | null
   updated_at: string | null
 }
@@ -257,7 +260,8 @@ export function useSettingsList() {
 export function useSaveSettings() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (values: Record<string, number>) => apiSend<{ items: SettingItem[] }>('PATCH', '/settings', { values }),
+    mutationFn: (values: Record<string, number | string>) =>
+      apiSend<{ items: SettingItem[] }>('PATCH', '/settings', { values }),
     onSettled: () => qc.invalidateQueries(),
   })
 }

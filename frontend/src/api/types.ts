@@ -1,10 +1,12 @@
 // Kiểu dữ liệu API (khớp backend/app/schemas). Số % để nguyên, UI tự định dạng.
-import type { DataStatus, Pattern, Zone } from '../lib/zones'
+import type { DataStatus, Pattern, Zone, ZoneMetric } from '../lib/zones'
 
 export interface AnalyticsParams {
   start: string
   end: string
   threshold: number
+  /** Áp T cho: both = 3 vùng · gpu / mem = 2 vùng (PLAN §14.9) */
+  zone_metric: ZoneMetric
   days_in_range: number
   /** Khoảng chọn vượt ra ngoài ngày có dữ liệu → backend đã cắt về [start, end] (PLAN §14.8) */
   clamped?: boolean
@@ -403,6 +405,7 @@ export interface CompareOut {
   a: PeriodKpi
   b: PeriodKpi
   threshold: number
+  zone_metric: ZoneMetric
   counts: Record<Movement, number>
   matrix: Record<string, Record<string, number>>
   items: CompareItem[]
@@ -426,6 +429,7 @@ export interface TrendMonth {
 
 export interface TrendOut {
   threshold: number | null
+  zone_metric: ZoneMetric | null
   granularity: TrendGranularity
   months: TrendMonth[]
 }
@@ -508,6 +512,7 @@ export interface MonthlyReportOut {
   start: string
   end: string
   threshold: number
+  zone_metric: ZoneMetric
   vtnet_t: number
   scope_owner: string | null
   available_months: string[]

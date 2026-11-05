@@ -26,12 +26,13 @@ from gpu_core.export import write_assessed_inventory  # noqa: E402
 
 
 def run(vtnet, inventory, out, threshold=g.DEFAULT_THRESHOLD, start=None, end=None, history=None,
-        ip_links=None):
+        ip_links=None, zone_metric="both"):
+    params = g.RuleParams(zone_metric=zone_metric)
     wbv = g.read_vtnet_workbook(vtnet)
     s = pd.Timestamp(start) if start else wbv.raw["ts"].min()
     e = pd.Timestamp(end) if end else wbv.raw["ts"].max()
     label = wbv.dominant_month if not (start or end) else f"{s:%Y-%m-%d}_{e:%Y-%m-%d}"
-    stats = g.server_stats(wbv.raw, s, e, threshold)
+    stats = g.server_stats(wbv.raw, s, e, threshold, params=params)
     links = g.load_ip_links(ip_links) if ip_links else None
     inv_raw = g.read_inventory(inventory)
     inv = g.apply_ip_links(inv_raw, links)          # cột ip = IP phía VTNet
@@ -46,7 +47,7 @@ def run(vtnet, inventory, out, threshold=g.DEFAULT_THRESHOLD, start=None, end=No
         pd.concat([hist[hist["period"].astype(str) != label], cur], ignore_index=True).to_csv(history, index=False)
 
     res = write_assessed_inventory(inventory, out, stats, inv_raw, threshold, s, e,
-                                   reclaimed=wbv.reclaimed, movement=movement, ip_links=links)
+                                   reclaimed=wbv.reclaimed, movement=movement, ip_links=links, params=params)
     matched = stats[stats["ip"].isin(set(inv["ip"]))]
     return dict(schema=wbv.schema, period=(s.date(), e.date()), label=label, matched=res["matched"],
                 linked=int(inv["ip_linked"].sum()),
@@ -67,9 +68,12 @@ def main():
     ap.add_argument("--end")
     ap.add_argument("--history")
     ap.add_argument("--ip-links", help="CSV inventory_ip,vtnet_ip,pair_confirmed,reason")
+    ap.add_argument("--zone-metric", choices=g.ZONE_METRICS, default="both",
+                    help="áp ngưỡng T cho cả 2 chỉ số (mặc định, 3 vùng) hoặc chỉ gpu/mem (2 vùng)")
     a = ap.parse_args()
-    r = run(a.vtnet, a.inventory, a.out, a.threshold, a.start, a.end, a.history, a.ip_links)
-    print(f"Schema: {r['schema']} | Kỳ: {r['period'][0]} → {r['period'][1]} ({r['label']}) | Ngưỡng: {a.threshold:g}%")
+    r = run(a.vtnet, a.inventory, a.out, a.threshold, a.start, a.end, a.history, a.ip_links, a.zone_metric)
+    print(f"Schema: {r['schema']} | Kỳ: {r['period'][0]} → {r['period'][1]} ({r['label']}) | Ngưỡng: {a.threshold:g}%"
+          f" ({g.ZONE_METRIC_LABEL_VI[a.zone_metric]})")
     print(f"Map được: {r['matched']} (qua liên kết IP: {r['linked']}) | VTNet-only: {len(r['vtnet_only'])} | "
           f"Inventory-only: {len(r['inv_only'])}")
     print("Vùng (server map được):", {g.ZONE_LABEL_VI[k]: v for k, v in r["zones"].items()})

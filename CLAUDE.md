@@ -52,11 +52,11 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
 - Docker (GĐ2, `docs/DEPLOY_VM.md`): `docker compose up -d --build` (web nginx :8080 → api → db PG16 + backup hằng đêm);
   `docker compose run --rm replay` chuyển dữ liệu GĐ1; `compose.dev.yaml` = tự tải lại, PG ở 127.0.0.1:15432 (máy đã có PostgreSQL 18 nghe ở 5433).
   Image không chứa `samples/ data/ .env` (`.dockerignore`). `/docs`, `/redoc` đã tắt (Q17 — Swagger tải CDN); đặc tả ở `/api/v1/openapi.json`.
-- `test_gpu_core.py` có 55 test (phần cần `samples/` tự skip theo đúng file/sheet nó thiếu).
+- `test_gpu_core.py` có 64 test (phần cần `samples/` tự skip theo đúng file/sheet nó thiếu).
   Test API: `conftest.py` (CSDL tạm đã migrate + seed, `warm_cache=False`), dữ liệu thật qua `tests/realdata.py`;
   có `TEST_PG_URL` → mọi test dùng `settings/engine/client/new_database` chạy cả `[sqlite]` và `[postgresql]` (mỗi test PG
   = 1 database clone từ database mẫu); test riêng SQLite đánh dấu `@pytest.mark.sqlite_only`. Đổi gì ở tầng CSDL → chạy `test-pg`.
-  `test_performance.py` (`slow`) đo API 12 tháng × 120 server. gpu_core hiện là **2.4.0** (`RuleParams`, `validate_daily`).
+  `test_performance.py` (`slow`) đo API 12 tháng × 120 server. gpu_core hiện là **2.5.0** (`RuleParams` + `zone_metric`, `validate_daily`).
 - Nhập VTNet: `import_checks.py` gắn mức error (chặn xác nhận) / warning (cần `acknowledge`) / info + xem trước tác động;
   thêm phép kiểm mới = thêm vào `run_checks` + test file lỗi dựng sẵn. "Hôm nay" qua `import_checks.today()` (test cố định).
   File VTNet đến qua Outlook nội bộ → admin upload thủ công (không có nhập tự động); cấu trúc chuẩn = file HSSD T7–T10.
@@ -73,6 +73,9 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
 - **Mọi phép tính nghiệp vụ đi qua `backend/gpu_core`** (vùng, mẫu hình, cờ VTNet, trung bình, nhận xét, xuất Excel).
   Không viết lại công thức trong SQL, router hay frontend. SQL chỉ lọc/lấy dữ liệu.
 - Luật vùng: `gpu<=T và mem<=T` → danger; đúng 1 trong 2 `<=T` → warning; cả 2 `>T` → safe. Biên là `<=`.
+  Tùy chọn **"Áp T cho"** (PLAN §14.9, người dùng chốt 05/11/2026): `RuleParams.zone_metric` = `both` (mặc định, luật trên) /
+  `gpu` / `mem` → 2 vùng: chỉ số đó `<=T` → danger, còn lại → safe. Nguồn: cài đặt `zone_metric`, ghi đè khi xem bằng tham số
+  `zone_metric=` (URL). Ngày nguy hiểm / streak theo chế độ; mẫu hình vẫn theo cả 2 chỉ số.
 - Cờ VTNet: `gpu<10 và mem<10` (biên `<` chặt). Hiển thị song song, không thay luật vùng.
 - TB toàn bộ server theo ngày = mean đơn giản qua server có mẫu ngày đó (= sheet VTNet `HSSD theo ngay VTT`).
   TB 1 server = mean mẫu ngày trong khoảng (= `VTT_KPI_overview` khi khoảng = kỳ file). `end` tính trọn ngày.

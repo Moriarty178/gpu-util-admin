@@ -28,6 +28,7 @@ def test_settings_change_recomputes_analysis(client: TestClient) -> None:
         "bursty_peak",
         "high_load",
         "thin_coverage",
+        "zone_metric",
         "max_upload_mb",
     }
     assert items["default_threshold"]["value"] == items["default_threshold"]["default"] == 40

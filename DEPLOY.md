@@ -344,6 +344,10 @@ của proxy để nginx lấy IP thật từ `X-Forwarded-For` của proxy đó 
   hướng dẫn; bỏ lớp TLS → chế độ HTTP như cũ (`COOKIE_SECURE=false`); `COMPOSE_FILE=compose.yaml;compose.tls.yaml` áp đúng.
   `task.sh tls-check` bắt được: thiếu chuỗi, sai cặp khóa, sai tên miền, khóa có passphrase, tự ký, sắp hết hạn.
 
+- 05/11/2026 — Thêm cài đặt **`zone_metric`** ("Áp T cho", PLAN §14.9; gpu_core 2.5.0). Không đổi schema/migration: `seed`
+  (tự chạy trong `setup/dev/run`; Docker: `api-entrypoint.sh` mỗi lần container api khởi động) thêm khóa còn thiếu với giá trị `both` = luật cũ → CSDL đã có (native,
+  Docker, bản `replay`) vẫn ra số như trước. Deploy bản mới chỉ cần build lại image; không cần thao tác dữ liệu.
+
 **Chưa kiểm / còn thiếu trước khi lên server thật**
 - [ ] Chạy `replay` dữ liệu thật T7→T10 trong Docker (image đã build lại 04/11/2026) → kiểm đủ bảng mục 7, tải deck .pptx qua nginx.
 - [ ] Chạy trên VM Linux thật (chưa từng làm).

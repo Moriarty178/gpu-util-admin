@@ -7,6 +7,7 @@ import {
   Flex,
   InputNumber,
   Row,
+  Segmented,
   Select,
   Slider,
   Space,
@@ -27,7 +28,19 @@ import { PatternTag, ZoneTag } from '../components/Tags'
 import { fmtDate, fmtInt, fmtPct } from '../lib/format'
 import { useDebouncedValue } from '../lib/useDebounced'
 import { vi } from '../lib/vi'
-import { PATTERN_META, PATTERN_ORDER, type Pattern, ZONE_META, ZONE_ORDER, type Zone } from '../lib/zones'
+import {
+  isZoneMetric,
+  PATTERN_META,
+  PATTERN_ORDER,
+  type Pattern,
+  ZONE_META,
+  ZONE_METRIC_META,
+  ZONE_METRICS,
+  ZONE_ORDER,
+  type Zone,
+  type ZoneMetric,
+  zoneRuleText,
+} from '../lib/zones'
 import { apiParams, globalSearch, parseList } from '../store/filters'
 import { useFilters, usePageParam } from '../store/useFilters'
 
@@ -86,6 +99,9 @@ export default function Alerts() {
   const [f, setFilters] = useFilters()
   const meta = useMeta()
   const defaultT = Number(meta.data?.settings.default_threshold ?? 40)
+  const sm = meta.data?.settings.zone_metric
+  const defaultMetric: ZoneMetric = isZoneMetric(sm) ? sm : 'both'
+  const metric = f.zone_metric ?? defaultMetric
   const [zonesParam, setZones] = usePageParam('zones')
   const [patternsParam, setPatterns] = usePageParam('patterns')
   const [vtnet, setVtnet] = usePageParam('vtnet')
@@ -127,8 +143,15 @@ export default function Alerts() {
       : null
 
   const columns: ColumnsType<ServerItem> = [
-    { title: vi.alerts.col.zone, dataIndex: 'zone', key: 'zone', sorter: true, sortOrder: sortOrder('zone'),
-      render: (z: Zone) => <ZoneTag zone={z} />, width: 120 },
+    {
+      title: vi.alerts.col.zone,
+      dataIndex: 'zone',
+      key: 'zone',
+      sorter: true,
+      sortOrder: sortOrder('zone'),
+      render: (z: Zone) => <ZoneTag zone={z} />,
+      width: 120,
+    },
     {
       title: vi.alerts.col.ip,
       dataIndex: 'ip',
@@ -148,27 +171,100 @@ export default function Alerts() {
         </Space>
       ),
     },
-    { title: vi.alerts.col.owner, dataIndex: 'owner', key: 'owner', sorter: true, sortOrder: sortOrder('owner'),
-      render: (o: string | null) => o ?? <Tag color="gold">{vi.badge.unmapped}</Tag> },
-    { title: vi.alerts.col.service, dataIndex: 'service', key: 'service', sorter: true, sortOrder: sortOrder('service'),
-      ellipsis: { showTitle: true }, render: (v: string | null) => v ?? '—' },
-    { title: vi.alerts.col.gpu, key: 'gpu', render: (_: unknown, r) => <GpuCell s={r} /> },
-    { title: vi.alerts.col.gpuAvg, dataIndex: 'gpu_avg', key: 'gpu_avg', align: 'right', sorter: true,
-      sortOrder: sortOrder('gpu_avg'), render: fmtPct },
-    { title: vi.alerts.col.memAvg, dataIndex: 'mem_avg', key: 'mem_avg', align: 'right', sorter: true,
-      sortOrder: sortOrder('mem_avg'), render: fmtPct },
-    { title: vi.alerts.col.peak, dataIndex: 'gpu_peak', key: 'gpu_peak', align: 'right', sorter: true,
-      sortOrder: sortOrder('gpu_peak'), render: fmtPct },
-    { title: vi.alerts.col.days, dataIndex: 'days', key: 'days', align: 'right', sorter: true, sortOrder: sortOrder('days'),
-      render: (d: number | null) => `${fmtInt(d)}/${fmtInt(q.data?.params.days_in_range)}` },
-    { title: vi.alerts.col.streak, dataIndex: 'low_streak', key: 'low_streak', align: 'right', sorter: true,
-      sortOrder: sortOrder('low_streak'), render: (n: number | null) => (n ? vi.alerts.streakDays(n) : '—') },
-    { title: vi.alerts.col.pattern, dataIndex: 'pattern', key: 'pattern', sorter: true, sortOrder: sortOrder('pattern'),
-      render: (p: Pattern) => <PatternTag pattern={p} /> },
-    { title: vi.alerts.col.vtnet, dataIndex: 'vtnet_low_load', key: 'vtnet', align: 'center',
-      render: (v: boolean) => (v ? <Tag color="gold">{vi.badge.vtnetFlag}</Tag> : null) },
-    { title: vi.alerts.col.assessment, dataIndex: 'assessment', key: 'assessment', ellipsis: { showTitle: false },
-      width: 320, render: (v: string) => <Tooltip title={v} placement="topLeft">{v}</Tooltip> },
+    {
+      title: vi.alerts.col.owner,
+      dataIndex: 'owner',
+      key: 'owner',
+      sorter: true,
+      sortOrder: sortOrder('owner'),
+      render: (o: string | null) => o ?? <Tag color="gold">{vi.badge.unmapped}</Tag>,
+    },
+    {
+      title: vi.alerts.col.service,
+      dataIndex: 'service',
+      key: 'service',
+      sorter: true,
+      sortOrder: sortOrder('service'),
+      ellipsis: { showTitle: true },
+      render: (v: string | null) => v ?? '—',
+    },
+    {
+      title: vi.alerts.col.gpu,
+      key: 'gpu',
+      render: (_: unknown, r) => <GpuCell s={r} />,
+    },
+    {
+      title: vi.alerts.col.gpuAvg,
+      dataIndex: 'gpu_avg',
+      key: 'gpu_avg',
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOrder('gpu_avg'),
+      render: fmtPct,
+    },
+    {
+      title: vi.alerts.col.memAvg,
+      dataIndex: 'mem_avg',
+      key: 'mem_avg',
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOrder('mem_avg'),
+      render: fmtPct,
+    },
+    {
+      title: vi.alerts.col.peak,
+      dataIndex: 'gpu_peak',
+      key: 'gpu_peak',
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOrder('gpu_peak'),
+      render: fmtPct,
+    },
+    {
+      title: vi.alerts.col.days,
+      dataIndex: 'days',
+      key: 'days',
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOrder('days'),
+      render: (d: number | null) => `${fmtInt(d)}/${fmtInt(q.data?.params.days_in_range)}`,
+    },
+    {
+      title: vi.alerts.col.streak,
+      dataIndex: 'low_streak',
+      key: 'low_streak',
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOrder('low_streak'),
+      render: (n: number | null) => (n ? vi.alerts.streakDays(n) : '—'),
+    },
+    {
+      title: vi.alerts.col.pattern,
+      dataIndex: 'pattern',
+      key: 'pattern',
+      sorter: true,
+      sortOrder: sortOrder('pattern'),
+      render: (p: Pattern) => <PatternTag pattern={p} />,
+    },
+    {
+      title: vi.alerts.col.vtnet,
+      dataIndex: 'vtnet_low_load',
+      key: 'vtnet',
+      align: 'center',
+      render: (v: boolean) => (v ? <Tag color="gold">{vi.badge.vtnetFlag}</Tag> : null),
+    },
+    {
+      title: vi.alerts.col.assessment,
+      dataIndex: 'assessment',
+      key: 'assessment',
+      ellipsis: { showTitle: false },
+      width: 320,
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          {v}
+        </Tooltip>
+      ),
+    },
   ]
 
   const data = q.data
@@ -198,10 +294,22 @@ export default function Alerts() {
         <Space direction="vertical" style={{ width: '100%' }}>
           <Flex wrap gap={12} align="center">
             <Typography.Text strong>{vi.alerts.slider}</Typography.Text>
-            <Slider min={0} max={100} value={t} onChange={setT} style={{ flex: '1 1 220px', minWidth: 180 }}
-              tooltip={{ formatter: (v) => `${v}%` }} />
-            <InputNumber min={0} max={100} value={t} onChange={(v) => typeof v === 'number' && setT(v)}
-              addonAfter="%" style={{ width: 100 }} />
+            <Slider
+              min={0}
+              max={100}
+              value={t}
+              onChange={setT}
+              style={{ flex: '1 1 220px', minWidth: 180 }}
+              tooltip={{ formatter: (v) => `${v}%` }}
+            />
+            <InputNumber
+              min={0}
+              max={100}
+              value={t}
+              onChange={(v) => typeof v === 'number' && setT(v)}
+              addonAfter="%"
+              style={{ width: 100 }}
+            />
             <Space.Compact>
               {T_PRESETS.map((p) => (
                 <Button key={p} type={t === p ? 'primary' : 'default'} onClick={() => setT(p)}>
@@ -210,13 +318,28 @@ export default function Alerts() {
               ))}
             </Space.Compact>
           </Flex>
+          <Flex wrap gap={12} align="center">
+            <Typography.Text strong>{vi.filters.zoneMetric}:</Typography.Text>
+            <Segmented<ZoneMetric>
+              value={metric}
+              onChange={(v) => setFilters({ zone_metric: v === defaultMetric ? undefined : v })}
+              options={ZONE_METRICS.map((m) => ({
+                value: m,
+                label: ZONE_METRIC_META[m].label,
+              }))}
+            />
+            <Typography.Text type="secondary">{zoneRuleText(t, metric)}</Typography.Text>
+          </Flex>
           <Flex wrap gap={16} align="center">
             <Space>
               <Typography.Text strong>{vi.alerts.zones}:</Typography.Text>
               <Checkbox.Group<Zone>
                 value={zones}
                 onChange={(v) => v.length > 0 && setZones(v.length === 1 && v[0] === 'danger' ? null : v.join(','))}
-                options={ZONE_ORDER.map((z) => ({ value: z, label: ZONE_META[z].label }))}
+                options={ZONE_ORDER.map((z) => ({
+                  value: z,
+                  label: ZONE_META[z].label,
+                }))}
               />
             </Space>
             <Select<Pattern[]>
@@ -226,7 +349,10 @@ export default function Alerts() {
               placeholder={`${vi.alerts.patterns}: ${vi.filters.all}`}
               value={patterns}
               onChange={(v) => setPatterns(v.length ? v.join(',') : null)}
-              options={PATTERN_ORDER.map((p) => ({ value: p, label: PATTERN_META[p].label }))}
+              options={PATTERN_ORDER.map((p) => ({
+                value: p,
+                label: PATTERN_META[p].label,
+              }))}
             />
             <Checkbox checked={vtnet === '1'} onChange={(e) => setVtnet(e.target.checked ? '1' : null)}>
               {vi.alerts.vtnetOnly}
@@ -250,7 +376,14 @@ export default function Alerts() {
       ) : !data ? (
         <Loading rows={10} />
       ) : (
-        <Card size="small" title={<span>{vi.alerts.summary}: {summaryParts.join(' · ')}</span>}>
+        <Card
+          size="small"
+          title={
+            <span>
+              {vi.alerts.summary}: {summaryParts.join(' · ')}
+            </span>
+          }
+        >
           <Table<ServerItem>
             size="small"
             rowKey="ip"

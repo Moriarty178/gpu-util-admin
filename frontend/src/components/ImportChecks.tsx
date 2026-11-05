@@ -70,7 +70,7 @@ export function ImpactPreview({ batch }: { batch: Batch }) {
   const daily = (Array.isArray(pv.daily) ? pv.daily : []) as LoadPoint[]
   const T = num(pv.threshold) ?? 40
   return (
-    <Card size="small" title={t.previewTitle(T)} extra={prev ? <Typography.Text type="secondary">{t.vsPrev(fmtPeriodLabel(prev.label as string))}</Typography.Text> : null}>
+    <Card size="small" title={t.previewTitle(T, typeof pv.zone_metric === 'string' ? pv.zone_metric : undefined)} extra={prev ? <Typography.Text type="secondary">{t.vsPrev(fmtPeriodLabel(prev.label as string))}</Typography.Text> : null}>
       <Row gutter={[12, 12]}>
         <Col xs={12} md={6}>
           <Statistic title={vi.kpi.gpuAvg} value={fmtPct(gpu)} />

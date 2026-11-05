@@ -1,4 +1,4 @@
-"""Tham số chung của API phân tích (PLAN §7): start, end, threshold, owner, gpu_model, cluster, managed_by (lặp được), q."""
+"""Tham số chung của API phân tích (PLAN §7): start, end, threshold, zone_metric, owner, gpu_model, cluster, managed_by (lặp được), q."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from fastapi import Depends, Query, Request
 
 from app.deps import SessionDep
 from app.schemas.common import Problem
-from app.services.analytics_service import AnalyticsCache, Bundle, Filters, get_bundle, resolve_context
+from app.services.analytics_service import AnalyticsCache, Bundle, Filters, ZoneMetric, get_bundle, resolve_context
 
 
 def get_cache(request: Request) -> AnalyticsCache:
@@ -43,6 +43,11 @@ def filters(
 FiltersDep = Annotated[Filters, Depends(filters)]
 CacheDep = Annotated[AnalyticsCache, Depends(get_cache)]
 Threshold = Annotated[float | None, Query(ge=0, le=100, description="Ngưỡng T %; mặc định = cài đặt")]
+ZoneMetricQ = Annotated[
+    ZoneMetric | None,
+    Query(description="Áp ngưỡng T cho: both = cả 2 chỉ số (3 vùng) · gpu / mem = chỉ 1 chỉ số (2 vùng: Nguy hiểm / "
+          "An toàn); mặc định = cài đặt"),
+]  # fmt: skip
 
 
 def analysis(
@@ -52,8 +57,9 @@ def analysis(
     start: Annotated[date | None, Query(description="YYYY-MM-DD; mặc định = kỳ file VTNet mới nhất")] = None,
     end: Annotated[date | None, Query(description="YYYY-MM-DD, tính trọn ngày")] = None,
     threshold: Threshold = None,
+    zone_metric: ZoneMetricQ = None,
 ) -> Analysis:
-    ctx = resolve_context(s, start, end, threshold)
+    ctx = resolve_context(s, start, end, threshold, zone_metric)
     return Analysis(bundle=get_bundle(s, cache, ctx), filters=f)
 
 

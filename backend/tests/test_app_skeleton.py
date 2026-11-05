@@ -20,7 +20,7 @@ from app.tools.backup import backup
 def test_healthz(client: TestClient) -> None:
     r = client.get("/api/v1/healthz")
     assert r.status_code == 200
-    assert r.json() == {"db": "ok", "gpu_core": "2.4.0"}  # gpu_core 2.4 (validate_daily)
+    assert r.json() == {"db": "ok", "gpu_core": "2.5.0"}  # gpu_core 2.5 (zone_metric)
 
 
 @pytest.mark.sqlite_only

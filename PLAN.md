@@ -834,3 +834,19 @@ Golden **độc lập**: chỉ so với (a) sheet VTNet tự tính, (b) kết qu
      `test_g2m3` (xu hướng tuần tính tay W40–W45: 2/2/2 · 1/3/2 · 0 · 0 · 3/1/2 · 3/1/2). Dữ liệu thật T7–T10: mặc định 05/10–01/11
      (10 Nguy hiểm / 47 Cảnh báo / 35 An toàn); 18 tuần W27–W44; báo cáo T10 giữ nguyên số (38,9% · 11 Nguy hiểm), T11 (chỉ ngày tràn
      01/11) bị chặn. Golden §7 giữ nguyên khi gọi đúng khoảng kỳ file.
+9. **Áp ngưỡng T cho 1 chỉ số** (người dùng yêu cầu 05/11/2026) — **[x] làm 05/11/2026**. Luật gốc (cả 2 chỉ số, 3 vùng) giữ
+   nguyên, thêm tùy chọn chỉ xét compute hoặc chỉ memory. Ví dụ người dùng: 10.224.58.73 compute 15% / memory 75%, T = 40 → luật cả 2
+   = Cảnh báo; chỉ compute = **Nguy hiểm**.
+   - **Người dùng chốt**: (1) chế độ 1 chỉ số chỉ có **2 vùng**: chỉ số đó ≤ T → Nguy hiểm, còn lại → An toàn, bỏ qua hẳn chỉ số kia
+     (vd 60/20 chỉ compute → An toàn; vùng Cảnh báo luôn = 0); (2) đặt ở **Cài đặt** (mặc định) **và chọn khi xem** trên thanh bộ lọc
+     (giống ô Ngưỡng T); (3) "Ngày nguy hiểm" và chuỗi ngày thấp tải **đếm theo chỉ số đã chọn**. Biên vẫn `<=`. Cờ VTNet không đổi.
+   - Đã làm: gpu_core **2.5.0** — `RuleParams.zone_metric` (`both`/`gpu`/`mem`, mặc định `both` → kết quả y như trước, golden không
+     đổi), `classify_zone(..., metric)`, `is_danger` (đếm ngày), `zone_rule_text`; nhận xét memory/compute-bound ghi đúng vùng
+     ("NGUY HIỂM (theo compute) – memory-bound"), mẫu hình vẫn mô tả theo cả 2 chỉ số; Excel ghi luật đang áp, tên file thêm `_gpu`/`_mem`;
+     skill: `--zone-metric`. App: cài đặt `zone_metric` (kiểu lựa chọn, seed `both`), tham số `zone_metric=` trên mọi API phân tích,
+     so sánh, xu hướng, báo cáo tháng (GET + POST .pptx); `params.zone_metric` trả về; slide ghi "T = 40% · chỉ compute". UI: ô
+     "Áp T cho" ở thanh bộ lọc (URL `zone_metric=`), nút chọn + câu mô tả luật ở trang Cảnh báo, ô chọn ở Cài đặt. Báo cáo tháng dùng
+     cài đặt (như T).
+   - Nghiệm thu: `test_gpu_core` (+9, 55 → 64: ví dụ 15/75, 60/20, biên 40/40; server_stats tổng hợp tính tay — chỉ compute Nguy hiểm .3 .5 .6,
+     chỉ memory .4 .5 .6; .6 ngày nguy hiểm 4/4/5), `test_zone_metric.py` (5: ghi đè khi xem, cài đặt + kiểm hợp lệ + nhật ký, xem trước
+     khi nhập, so sánh / xu hướng, Excel), `test_reports` (+1: chỉ compute T8/T9/T10 Nguy hiểm 1/3/3, chuỗi .5 ≥3 tháng).

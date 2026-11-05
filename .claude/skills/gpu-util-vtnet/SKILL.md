@@ -47,6 +47,8 @@ python <SKILL_DIR>/scripts/analyze_gpu_util.py \
 
 ## Luật (không tự ý đổi)
 - Vùng, 1 ngưỡng T, so sánh `<=`: gpu≤T **và** mem≤T → **Nguy hiểm**; đúng 1 trong 2 ≤T → **Cảnh báo**; cả 2 >T → **An toàn**.
+  Tùy chọn `--zone-metric gpu|mem`: chỉ xét 1 chỉ số → 2 vùng (chỉ số đó ≤T → **Nguy hiểm**, còn lại → **An toàn**,
+  không có Cảnh báo); ngày nguy hiểm/chuỗi ngày đếm theo cùng chế độ. Mặc định `both` = luật 3 vùng.
 - Mẫu hình: idle / bursty_idle (TB ≤T nhưng đỉnh ngày ≥70%) / memory_bound / compute_bound / high_load (cả 2 ≥80%) / healthy.
 - Cờ **THẤP TẢI VTNet**: gpu<10 **và** mem<10 (so sánh `<`), suy luận từ sheet `pivot_value` file T10 — khớp 250/250 server.
 - Dữ liệu mỏng: số ngày có số liệu / số ngày trong khoảng < 0.8.

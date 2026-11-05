@@ -3,15 +3,18 @@ import {
   compareZone,
   DATA_STATUS_META,
   isPattern,
+  isZoneMetric,
   isZone,
   ownerLabel,
   PATTERN_META,
   PATTERN_ORDER,
   patternLabel,
   SERIES,
+  thresholdLabel,
   ZONE_META,
   ZONE_ORDER,
   zoneLabel,
+  zoneRuleText,
 } from './zones'
 
 describe('zones', () => {
@@ -56,5 +59,17 @@ describe('zones', () => {
   it('đầu mối chưa map', () => {
     expect(ownerLabel('_unmapped')).toBe('Chưa có trong thống kê')
     expect(ownerLabel('kientt6')).toBe('kientt6')
+  })
+})
+
+describe('nhãn luật vùng theo chỉ số áp T', () => {
+  it('khớp report_service.t_label / gpu_core.zone_rule_text', () => {
+    expect(thresholdLabel(40)).toBe('T = 40%')
+    expect(thresholdLabel(40, 'gpu')).toBe('T = 40% · chỉ compute')
+    expect(thresholdLabel(35, 'mem')).toBe('T = 35% · chỉ memory')
+    expect(zoneRuleText(40, 'gpu')).toContain('compute ≤ 40% → Nguy hiểm')
+    expect(zoneRuleText(40, 'gpu')).toContain('không có vùng Cảnh báo')
+    expect(zoneRuleText(40)).toContain('đúng 1 chỉ số ≤ 40% → Cảnh báo')
+    expect([isZoneMetric('both'), isZoneMetric('gpu'), isZoneMetric('cpu'), isZoneMetric(null)]).toEqual([true, true, false, false])
   })
 })

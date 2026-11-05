@@ -1,22 +1,38 @@
-// Bộ lọc toàn cục (PLAN §8.0): [Khoảng ngày + preset] [Đầu mối] [Loại GPU] [Cụm] [Quản lý bằng] [Ngưỡng T].
+// Bộ lọc toàn cục (PLAN §8.0): [Khoảng ngày + preset] [Đầu mối] [Loại GPU] [Cụm] [Quản lý bằng] [Ngưỡng T] [Áp T cho].
 // Nguồn sự thật = URL query → giữ khi chuyển trang, chia sẻ link được. Hàm thuần ở đây (test bằng Vitest).
 import dayjs from 'dayjs'
+import { isZoneMetric, type ZoneMetric } from '../lib/zones'
 
 export interface GlobalFilters {
   start?: string // YYYY-MM-DD; bỏ trống = kỳ file VTNet mới nhất (API tự chọn)
   end?: string
   threshold?: number // bỏ trống = cài đặt default_threshold
+  zone_metric?: ZoneMetric // áp T cho chỉ số nào; bỏ trống = cài đặt zone_metric (PLAN §14.9)
   owner: string[]
   gpu_model: string[]
   cluster: string[]
   managed_by: string[]
 }
 
-export const GLOBAL_KEYS = ['start', 'end', 'threshold', 'owner', 'gpu_model', 'cluster', 'managed_by'] as const
+export const GLOBAL_KEYS = [
+  'start',
+  'end',
+  'threshold',
+  'zone_metric',
+  'owner',
+  'gpu_model',
+  'cluster',
+  'managed_by',
+] as const
 const LIST_KEYS = ['owner', 'gpu_model', 'cluster', 'managed_by'] as const
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-export const EMPTY_FILTERS: GlobalFilters = { owner: [], gpu_model: [], cluster: [], managed_by: [] }
+export const EMPTY_FILTERS: GlobalFilters = {
+  owner: [],
+  gpu_model: [],
+  cluster: [],
+  managed_by: [],
+}
 
 function validDate(v: string | null): string | undefined {
   return v && DATE_RE.test(v) && dayjs(v).isValid() ? v : undefined
@@ -24,6 +40,7 @@ function validDate(v: string | null): string | undefined {
 
 export function parseFilters(sp: URLSearchParams): GlobalFilters {
   const t = sp.get('threshold')
+  const zm = sp.get('zone_metric')
   const n = t === null || t === '' ? NaN : Number(t)
   let start = validDate(sp.get('start'))
   let end = validDate(sp.get('end'))
@@ -35,6 +52,7 @@ export function parseFilters(sp: URLSearchParams): GlobalFilters {
     start,
     end,
     threshold: Number.isFinite(n) && n >= 0 && n <= 100 ? n : undefined,
+    zone_metric: isZoneMetric(zm) ? zm : undefined,
     owner: sp.getAll('owner').filter(Boolean),
     gpu_model: sp.getAll('gpu_model').filter(Boolean),
     cluster: sp.getAll('cluster').filter(Boolean),
@@ -71,6 +89,7 @@ export function apiParams(f: GlobalFilters, extra: Record<string, ParamValue> = 
     out.set('end', f.end)
   }
   if (f.threshold !== undefined) out.set('threshold', String(f.threshold))
+  if (f.zone_metric !== undefined) out.set('zone_metric', f.zone_metric)
   for (const key of LIST_KEYS) f[key].forEach((v) => out.append(key, v))
   for (const [key, value] of Object.entries(extra)) {
     if (value === undefined || value === null || value === '' || value === false) continue

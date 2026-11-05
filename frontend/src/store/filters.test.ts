@@ -81,3 +81,16 @@ describe('clampToData', () => {
     expect(clampToData('2026-10-01', '2026-10-31', null, null)).toBeNull()
   })
 })
+
+describe('áp ngưỡng T cho chỉ số nào (PLAN §14.9)', () => {
+  it('đọc / ghi zone_metric qua URL, bỏ giá trị lạ', () => {
+    expect(parseFilters(new URLSearchParams('zone_metric=gpu')).zone_metric).toBe('gpu')
+    expect(parseFilters(new URLSearchParams('zone_metric=cpu')).zone_metric).toBeUndefined()
+    expect(parseFilters(new URLSearchParams('')).zone_metric).toBeUndefined()
+    const f = { ...EMPTY_FILTERS, threshold: 40, zone_metric: 'mem' as const }
+    expect(apiParams(f).toString()).toBe('threshold=40&zone_metric=mem')
+    expect(apiParams(EMPTY_FILTERS).has('zone_metric')).toBe(false)
+    expect(globalSearch(new URLSearchParams('zone_metric=gpu&zones=danger'))).toBe('?zone_metric=gpu')
+    expect(writeFilters(new URLSearchParams('zone_metric=gpu'), { zone_metric: undefined }).toString()).toBe('')
+  })
+})
