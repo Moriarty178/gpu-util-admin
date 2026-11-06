@@ -107,3 +107,8 @@ def data_range(s: Session) -> tuple[date | None, date | None]:
 
 def distinct_gpu_types(s: Session) -> list[str]:
     return sorted(v for v in s.scalars(select(util_effective.c.gpu_type).distinct()) if v)
+
+
+def has_samples(s: Session, ip: str) -> bool:
+    """IP có ít nhất 1 mẫu hiệu lực (lô VTNet committed)."""
+    return s.scalar(select(util_effective.c.ip).where(util_effective.c.ip == ip).limit(1)) is not None

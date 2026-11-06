@@ -40,21 +40,29 @@ def export_assessed(s: Session, b: Bundle, scope: Scope) -> tuple[bytes, str]:
     if b.stats.empty:
         raise ServiceError(409, "Không có số liệu VTNet trong khoảng ngày đã chọn.")
     stats = b.stats
-    inv = g.read_inventory(path)
-    sheet = str(inv.attrs.get("sheet", "Thống kê chi tiết"))
-    # đầu mối… theo sửa tay của admin (PLAN §14.11) — phạm vi & tổng hợp theo đầu mối khớp với web; ô gốc giữ nguyên
-    inv = inventory_repo.apply_overrides(inv, inventory_repo.overrides_frame(s))
-    inv.attrs["sheet"] = sheet
-    if scope.kind == "owner":  # chỉ server của đầu mối
-        stats = stats[stats["ip"].isin(apply_scope(b.servers, scope)["ip"])]
-        inv = inv[inv["owner"] == scope.owner_key].copy()
-        inv.attrs["sheet"] = sheet
     links = dict(zip(b.links["inventory_ip"], b.links["vtnet_ip"], strict=True))
     ctx = b.ctx
     with tempfile.TemporaryDirectory() as tmp:
+        src = path
+        inv = g.read_inventory(path)
+        sheet = str(inv.attrs.get("sheet", "Thống kê chi tiết"))
+        manual = inventory_repo.effective_frame(s)
+        manual = manual[manual["manual"].astype(bool)]
+        # server bổ sung trên web (PLAN §14.12) → thêm dòng cuối sheet để gpu_core đánh giá như dòng thường
+        if not manual.empty:
+            src = Path(tmp) / "thong_ke_bo_sung.xlsx"
+            _append_manual(path, src, sheet, manual)
+            inv = g.read_inventory(src)
+        # đầu mối… theo sửa tay của admin (PLAN §14.11) — phạm vi & tổng hợp theo đầu mối khớp với web
+        inv = inventory_repo.apply_overrides(inv, inventory_repo.overrides_frame(s))
+        inv.attrs["sheet"] = sheet
+        if scope.kind == "owner":  # chỉ server của đầu mối
+            stats = stats[stats["ip"].isin(apply_scope(b.servers, scope)["ip"])]
+            inv = inv[inv["owner"] == scope.owner_key].copy()
+            inv.attrs["sheet"] = sheet
         out = Path(tmp) / "danh_gia.xlsx"
         write_assessed_inventory(
-            path,
+            src,
             out,
             stats,
             inv,
@@ -128,3 +136,31 @@ def _apply_edits(path: Path, sheet: str, inv: pd.DataFrame) -> None:
             cell.comment = Comment(f"Sửa tay trên web — theo file: {file_value or '(trống)'}", "GPU Util")
     wb.calculation.fullCalcOnLoad = True  # giữ như gpu_core.export: Excel tự tính lại công thức khi mở
     wb.save(path)
+
+
+MANUAL_NOTE = "Bổ sung trên web — file thống kê chưa có server này (VTNet có số liệu)"
+
+
+def _append_manual(path: Path, out: Path, sheet: str, manual: pd.DataFrame) -> None:
+    """Chép file thống kê gốc + thêm các server bổ sung trên web vào cuối sheet thống kê chi tiết (cột theo header như
+    read_inventory; STT để trống; ô IP nền vàng nhạt + ghi chú)."""
+    wb = openpyxl.load_workbook(path)
+    ws = wb[sheet]
+    cols: dict[str, int] = {}
+    for c in range(1, ws.max_column + 1):
+        key = _inv_key(ws.cell(1, c).value)
+        if key and key not in cols:
+            cols[key] = c
+    r = ws.max_row
+    for row in manual.to_dict("records"):
+        r += 1
+        for field, col in cols.items():
+            if field in ("stt", "assessment"):
+                continue
+            v = row.get(field)
+            if v is not None and not (isinstance(v, float) and pd.isna(v)):
+                ws.cell(r, col, v)
+        ip_cell = ws.cell(r, cols["ip"])
+        ip_cell.fill = EDITED_FILL
+        ip_cell.comment = Comment(MANUAL_NOTE, "GPU Util")
+    wb.save(out)

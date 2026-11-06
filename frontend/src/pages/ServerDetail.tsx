@@ -146,6 +146,7 @@ export default function ServerDetail() {
                 {s && <ZoneTag zone={s.zone} />}
                 {s && <PatternTag pattern={s.pattern} short={false} />}
                 <StatusTag status={d.data_status} />
+                {inv?.manual ? <Tag>{vi.inventory.manualTag}</Tag> : null}
                 {s && (
                   <Tag color={s.vtnet_low_load ? 'gold' : 'default'}>
                     {vi.server.vtnetFlag}: {s.vtnet_low_load ? vi.server.yes : vi.server.no}

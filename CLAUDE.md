@@ -91,6 +91,9 @@ Người dùng là admin quy hoạch hạ tầng, nói tiếng Việt, cần câ
   "Trạng thái thu hồi" (mặc định Đang sử dụng) → bảng `inventory_override` (khóa IP thống kê) đè lên lô thống kê khi đọc
   (`inventory_repo.effective_frame` — mọi chỗ đọc thống kê để hiển thị/phạm vi phải đi qua đây), **giữ cả khi nhập file mới**
   (xem trước nhập báo ô khác). Chỉ là thông tin: không đổi phép tính; phép tính chỉ theo server có log VTNet trong khoảng xem.
+  **Bổ sung server VTNet-only** (PLAN §14.12, chốt 06/11/2026, trang Đối soát): dòng `is_manual` (khóa IP VTNet, đủ cột như file,
+  bắt buộc đầu mối) thành dòng thống kê → rời "VTNet có – thống kê thiếu", tính cho đầu mối như server chuẩn; "ngủ" khi file đã có IP
+  hoặc IP là đích liên kết. Sửa ở đúng trang chuyên trách (Đối soát / Danh mục), không thêm chỗ sửa ở Cảnh báo.
 - **Schema trung tính SQLite ↔ PostgreSQL** (PLAN §4): IP là TEXT, JSON qua `sa.JSON`, view thường (không materialized view), không dùng
   hàm/kiểu riêng của 1 dialect. Truy vấn qua SQLAlchemy Core/ORM.
 - Mọi service nhận `Scope` (không nhận user). `deps.py`: cookie phiên → `CurrentUser` (đọc lại app_user mỗi request: khóa / đổi

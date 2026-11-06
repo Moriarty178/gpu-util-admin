@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogItem } from '../api/types'
-import { editBody, fileValue, type InventoryForm } from './inventoryEdit'
+import { editBody, fileValue, type InventoryForm, manualBody } from './inventoryEdit'
 
 // .3 trong file: dịch vụ 'Embedding', model 'model-x'; admin đã sửa dịch vụ → 'Rerank'
 const row = {
@@ -49,5 +49,17 @@ describe('editBody', () => {
   })
   it("xóa trắng ô có giá trị → '' (để trống)", () => {
     expect(editBody(row, form({ model: '' }))).toEqual({ model: '' })
+  })
+})
+
+describe('manualBody', () => {
+  it('cắt khoảng trắng, bỏ ô trống, mặc định Đang sử dụng', () => {
+    expect(manualBody('192.0.2.6', { owner: ' kientt6 ', gpu_spec: '8*H200', cpu: '  ', service: 'Train ' })).toEqual({
+      ip: '192.0.2.6',
+      owner: 'kientt6',
+      reclaim_status: 'in_use',
+      gpu_spec: '8*H200',
+      service: 'Train',
+    })
   })
 })

@@ -88,6 +88,11 @@ export default function Inventory() {
   const statusCell = (s: DataStatus, r: CatalogItem) => (
     <Space size={4} wrap>
       <StatusTag status={s} />
+      {r.manual && (
+        <Tooltip title={vi.inventory.manualTip}>
+          <Tag icon={<EditOutlined />}>{vi.inventory.manualTag}</Tag>
+        </Tooltip>
+      )}
       {r.ip_linked && (
         <Tag color="cyan" icon={<LinkOutlined />}>
           {r.pair_confirmed ? vi.badge.linked : vi.badge.linkedUnconfirmed}
@@ -199,6 +204,7 @@ export default function Inventory() {
             <Tag color="cyan" icon={<LinkOutlined />}>{vi.inventory.linked(c.linked)}</Tag>
             <Tag color="purple">{vi.inventory.reclaimMarked(c.reclaim_marked)}</Tag>
             {c.edited > 0 && <Tag icon={<EditOutlined />}>{vi.inventory.editedCount(c.edited)}</Tag>}
+            {c.manual > 0 && <Tag icon={<EditOutlined />}>{`${vi.inventory.manualTag}: ${c.manual}`}</Tag>}
           </Space>
           <Space wrap>
             <Input.Search

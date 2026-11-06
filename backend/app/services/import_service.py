@@ -298,6 +298,7 @@ def _stage_inventory(s: Session, batch: ImportBatch, path: Path, sheets: list[st
         rows.append(row)
 
     conflicts = inventory_service.import_conflicts(s, rows)  # sửa tay trên web khác file mới (PLAN §14.11)
+    manual_in_file = inventory_service.manual_now_in_file(s, ips)  # server bổ sung trên web nay file đã có (§14.12)
     owners = Counter(str(r["owner"] or "(trống)") for r in rows)
     managed = Counter(str(r["managed_by"] or "(trống)") for r in rows)
     batch.schema_version = "inventory_v1"
@@ -312,6 +313,7 @@ def _stage_inventory(s: Session, batch: ImportBatch, path: Path, sheets: list[st
             "removed_ips": sorted(current - ips) if prev else [],
             "linked_ips": len(ips & linked),
             "edit_conflicts": conflicts,
+            "manual_in_file": manual_in_file,
         }
     )
     batch.validation = jsonable(
@@ -319,6 +321,7 @@ def _stage_inventory(s: Session, batch: ImportBatch, path: Path, sheets: list[st
             "warnings": [
                 *inv.attrs.get("warnings", []),
                 *([inventory_service.conflict_warning(conflicts)] if conflicts else []),
+                *([inventory_service.manual_warning(manual_in_file)] if manual_in_file else []),
             ],
             "invalid_ip_rows": inv.attrs.get("invalid_ip_rows", []),
             "extra_columns": extra_cols,

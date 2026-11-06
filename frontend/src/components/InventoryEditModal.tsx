@@ -1,7 +1,8 @@
-import { Alert, App, AutoComplete, Button, Form, Input, Modal, Select, Typography } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
+import { Alert, App, AutoComplete, Button, Form, Input, Modal, Popconfirm, Select, Space, Typography } from 'antd'
 import { useState } from 'react'
 import { errorMessage } from '../api/client'
-import { useEditInventory, useMeta } from '../api/hooks'
+import { useEditInventory, useManualInventory, useMeta } from '../api/hooks'
 import { type CatalogItem, EDITABLE_FIELDS, type EditableField } from '../api/types'
 import { editBody, fileValue, type InventoryForm } from '../lib/inventoryEdit'
 import { vi } from '../lib/vi'
@@ -19,6 +20,8 @@ const LABEL: Record<EditableField, string> = {
 export function InventoryEditModal({ row, onClose }: { row: CatalogItem | null; onClose: () => void }) {
   const [form] = Form.useForm<InventoryForm>()
   const edit = useEditInventory()
+  const manualAct = useManualInventory()
+  const manual = row?.manual ?? false // server bổ sung trên web: không có giá trị "theo file"
   const { data: meta } = useMeta()
   const { message } = App.useApp()
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +47,16 @@ export function InventoryEditModal({ row, onClose }: { row: CatalogItem | null; 
     }
   }
 
+  const removeManual = async () => {
+    try {
+      await manualAct.remove.mutateAsync(ip)
+      message.success(vi.inventory.manualRemoved(ip))
+      onClose()
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
   return (
     <Modal
       open={row !== null}
@@ -55,6 +68,18 @@ export function InventoryEditModal({ row, onClose }: { row: CatalogItem | null; 
       onCancel={onClose}
       destroyOnHidden
       width={560}
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <Space>
+          {manual && (
+            <Popconfirm title={vi.inventory.confirmRemoveManual} okText={vi.imports.confirmOk}
+              cancelText={vi.imports.confirmCancel} onConfirm={() => void removeManual()}>
+              <Button danger icon={<DeleteOutlined />} loading={manualAct.remove.isPending}>{vi.inventory.removeManual}</Button>
+            </Popconfirm>
+          )}
+          <CancelBtn />
+          <OkBtn />
+        </Space>
+      )}
       afterOpenChange={(o) => {
         if (!o || !row) return
         setError(null)
@@ -65,7 +90,7 @@ export function InventoryEditModal({ row, onClose }: { row: CatalogItem | null; 
       }}
     >
       <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
-        {vi.inventory.editHint}
+        {manual ? vi.inventory.manualHint : vi.inventory.editHint}
       </Typography.Paragraph>
       {error && <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={error} />}
       <Form<InventoryForm> form={form} layout="vertical" requiredMark={false} onFinish={(v) => void submit(v)}>
@@ -81,14 +106,14 @@ export function InventoryEditModal({ row, onClose }: { row: CatalogItem | null; 
                 key={f}
                 label={LABEL[f]}
                 style={{ marginBottom: 12 }}
-                extra={
+                extra={manual ? undefined : (
                   <span>
                     {vi.inventory.fileValue(file)}{' '}
                     <Button type="link" size="small" style={{ padding: 0 }} onClick={() => form.setFieldValue(f, file ?? '')}>
                       {vi.inventory.resetToFile}
                     </Button>
                   </span>
-                }
+                )}
               >
                 <Form.Item name={f} noStyle>
                   {options.length > 0 ? (

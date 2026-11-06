@@ -161,6 +161,9 @@ class CatalogItem(BaseModel):
         None, description="Trạng thái thu hồi (admin đặt; mặc định in_use = Đang sử dụng). VTNet-only: null"
     )
     edited: dict[str, str | None] | None = Field(None, description="Ô admin sửa tay khác file: cột → giá trị theo file")
+    manual: bool = Field(
+        False, description="Server bổ sung trên web (VTNet có log, file thống kê chưa có) — PLAN §14.12"
+    )
 
 
 class CatalogCounts(BaseModel):
@@ -173,6 +176,7 @@ class CatalogCounts(BaseModel):
     gpu_count_mismatch: int
     reclaim_marked: int = Field(0, description="Số dòng admin đánh dấu 'VTNet đã thu hồi'")
     edited: int = Field(0, description="Số dòng có ô sửa tay khác file")
+    manual: int = Field(0, description="Số server bổ sung trên web (file thống kê chưa có)")
 
 
 class CatalogOut(BaseModel):

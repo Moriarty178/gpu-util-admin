@@ -121,6 +121,9 @@ Hạn chế phải luôn hiển thị: file chỉ có GPU, **không có CPU/RAM*
   tính trên server có log VTNet trong khoảng xem; golden §7 không bị ảnh hưởng (chưa có sửa tay). Khác với trạng thái số liệu
   "Đã thu hồi" (suy từ sheet 'DS đã thu' của VTNet) — 2 thông tin độc lập. File Excel xuất ghi giá trị sửa tay vào ô (nền vàng
   nhạt + ghi chú giá trị theo file) và thêm cột cuối "Trạng thái thu hồi".
+- **Bổ sung server VTNet-only** (PLAN §14.12, 06/11/2026): admin điền thông tin cho server VTNet có log mà file thống kê thiếu (Đối
+  soát) → server được tính cho đầu mối như dòng thống kê ("Bổ sung trên web"); golden §7 không đổi (golden chạy trên CSDL mới,
+  không có bổ sung). Trên CSDL thật, mỗi server bổ sung làm số "chưa map" giảm 1 và số của đầu mối tăng tương ứng.
 
 ## 6. Kết quả ánh xạ & chất lượng dữ liệu (T10 + inventory mới)
 

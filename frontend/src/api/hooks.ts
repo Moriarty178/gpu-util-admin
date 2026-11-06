@@ -8,6 +8,7 @@ import type {
   CompareOut,
   GapsOut,
   InventoryEditIn,
+  InventoryManualIn,
   InventoryStateOut,
   IpLinkRow,
   MultiSeriesOut,
@@ -142,12 +143,14 @@ export function useIpLinks(f: GlobalFilters) {
   return useApi<{ items: IpLinkRow[] }>('/ip-links', apiParams(f))
 }
 
-type LinkPatch = { vtnet_ip?: string; pair_confirmed?: boolean; reason?: string | null }
+type LinkPatch = { inventory_ip?: string; vtnet_ip?: string; pair_confirmed?: boolean; reason?: string | null }
 
 /** Đổi liên kết IP → mọi số liệu phân tích đổi theo → làm mới mọi truy vấn. */
 export function useLinkActions() {
   const qc = useQueryClient()
-  const refresh = () => qc.invalidateQueries()
+  const refresh = () => {
+    void qc.invalidateQueries() // tải lại nền — hộp thoại đóng ngay, không chờ mọi truy vấn
+  }
   return {
     create: useMutation({
       mutationFn: (body: { inventory_ip: string; vtnet_ip: string; reason?: string | null }) =>
@@ -278,6 +281,24 @@ export function useEditInventory() {
       void qc.invalidateQueries() // tải lại nền — không bắt hộp thoại chờ mọi truy vấn xong
     },
   })
+}
+
+/** Bổ sung / bỏ bổ sung server VTNet-only (Đối soát, PLAN §14.12) → phân tích tính lại (đầu mối có thêm server). */
+export function useManualInventory() {
+  const qc = useQueryClient()
+  const refresh = () => {
+    void qc.invalidateQueries()
+  }
+  return {
+    add: useMutation({
+      mutationFn: (body: InventoryManualIn) => apiPost<InventoryStateOut>('/inventory/manual', body),
+      onSettled: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (ip: string) => apiSend<void>('DELETE', `/inventory/manual/${ip}`),
+      onSettled: refresh,
+    }),
+  }
 }
 
 export function useAudit(params: Record<string, string | number | undefined>) {

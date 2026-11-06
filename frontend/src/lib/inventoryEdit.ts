@@ -1,4 +1,12 @@
-import { type CatalogItem, EDITABLE_FIELDS, type EditableField, type InventoryEditIn } from '../api/types'
+import {
+  type CatalogItem,
+  EDITABLE_FIELDS,
+  type EditableField,
+  type InventoryEditIn,
+  type InventoryManualIn,
+  MANUAL_FIELDS,
+  type ManualField,
+} from '../api/types'
 import type { ReclaimStatus } from './zones'
 
 /** Giá trị form sửa tay 1 server (Danh mục server, PLAN §14.11). */
@@ -19,5 +27,19 @@ export function editBody(row: CatalogItem, v: InventoryForm): InventoryEditIn {
     body[f] = next === (fileValue(row, f) ?? '') ? null : next
   }
   if (v.reclaim_status !== (row.reclaim_status ?? 'in_use')) body.reclaim_status = v.reclaim_status
+  return body
+}
+
+/** Giá trị form bổ sung 1 server VTNet-only (Đối soát, PLAN §14.12). */
+export type ManualForm = Partial<Record<EditableField | ManualField, string>> & { reclaim_status?: ReclaimStatus }
+
+/** Thân POST /inventory/manual: cắt khoảng trắng, bỏ ô trống. */
+export function manualBody(ip: string, v: ManualForm): InventoryManualIn {
+  const body: InventoryManualIn = { ip, owner: (v.owner ?? '').trim(), reclaim_status: v.reclaim_status ?? 'in_use' }
+  for (const f of [...MANUAL_FIELDS, ...EDITABLE_FIELDS]) {
+    if (f === 'owner') continue
+    const x = (v[f] ?? '').trim()
+    if (x) body[f] = x
+  }
   return body
 }

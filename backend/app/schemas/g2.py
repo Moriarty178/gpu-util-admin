@@ -79,6 +79,7 @@ class GapCounts(BaseModel):
     gpu_count_mismatch: int
     links: int
     links_unconfirmed: int
+    manual: int = Field(0, description="Server VTNet-only đã bổ sung trên web (file thống kê chưa có) — PLAN §14.12")
 
 
 class GapsOut(BaseModel):
@@ -122,6 +123,11 @@ class LinkCreateIn(BaseModel):
 
 
 class LinkUpdateIn(BaseModel):
+    inventory_ip: str | None = Field(
+        default=None,
+        max_length=15,
+        description="Đổi IP thống kê của cặp (phải có trong file thống kê; cặp mới chưa xác nhận)",
+    )
     vtnet_ip: str | None = Field(default=None, max_length=15)
     pair_confirmed: bool | None = None
     reason: str | None = Field(default=None, max_length=500)

@@ -141,6 +141,8 @@ export interface CatalogItem {
   reclaim_status: ReclaimStatus | null
   /** Ô admin sửa tay khác file: cột → giá trị theo file; null với dòng VTNet-only */
   edited: Partial<Record<EditableField, string | null>> | null
+  /** Server bổ sung trên web ở trang Đối soát (VTNet có log, file thống kê chưa có) */
+  manual: boolean
 }
 
 export type EditableField = 'owner' | 'model' | 'input_load' | 'service' | 'managed_by' | 'cluster'
@@ -149,8 +151,18 @@ export const EDITABLE_FIELDS: EditableField[] = ['owner', 'model', 'input_load',
 /** PATCH /inventory/{ip}: chỉ gửi khóa cần đổi; null = về theo file; '' = để trống */
 export type InventoryEditIn = Partial<Record<EditableField, string | null>> & { reclaim_status?: ReclaimStatus }
 
+/** Cột phần cứng của 1 server bổ sung trên web (đủ cột như file thống kê, trừ STT) */
+export type ManualField = 'server_class' | 'config' | 'cpu' | 'ram' | 'disk' | 'hba' | 'gpu_spec' | 'serial'
+export const MANUAL_FIELDS: ManualField[] = ['server_class', 'config', 'cpu', 'ram', 'disk', 'hba', 'gpu_spec', 'serial']
+
+/** POST /inventory/manual — bổ sung server VTNet-only (bắt buộc đầu mối) */
+export type InventoryManualIn = { ip: string; owner: string; reclaim_status?: ReclaimStatus } & Partial<
+  Record<Exclude<EditableField, 'owner'> | ManualField, string | null>
+>
+
 export interface InventoryStateOut {
   inventory_ip: string
+  manual: boolean
   values: Record<EditableField, string | null>
   file_values: Record<EditableField, string | null>
   edited: Partial<Record<EditableField, string | null>>
@@ -171,6 +183,7 @@ export interface CatalogOut {
     gpu_count_mismatch: number
     reclaim_marked: number
     edited: number
+    manual: number
   }
   items: CatalogItem[]
 }
@@ -366,6 +379,7 @@ export interface GapsOut {
     gpu_count_mismatch: number
     links: number
     links_unconfirmed: number
+    manual: number
   }
   vtnet_only: VtnetOnlyRow[]
   reclaimed: InventoryGapRow[]

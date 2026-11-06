@@ -89,7 +89,7 @@ def test_gaps_and_suggestions(data: Settings) -> None:
     with app_client(data) as c:
         g = j(c.get("/api/v1/gaps", params=OCT))
         assert g["counts"] == {"vtnet_only": 1, "no_data": 2, "reclaimed": 0, "unknown": 2, "gpu_count_mismatch": 1,
-                               "links": 9, "links_unconfirmed": 9}  # fmt: skip
+                               "links": 9, "links_unconfirmed": 9, "manual": 0}  # fmt: skip
         assert [r["ip"] for r in g["vtnet_only"]] == ["192.0.2.6"]
         assert sorted(r["inventory_ip"] for r in g["unknown"]) == ["192.0.2.7", "192.0.2.9"]
         mm = g["gpu_count_mismatch"][0]

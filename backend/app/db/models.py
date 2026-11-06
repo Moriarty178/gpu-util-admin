@@ -245,7 +245,10 @@ RECLAIM_STATUSES = ("in_use", "reclaimed")
 class InventoryOverride(Base):
     """Admin sửa tay thông tin 1 server trong danh mục (khóa = IP trong file thống kê). Đè lên lô thống kê hiện hành khi
     hiển thị, kể cả sau khi nhập file thống kê mới (người dùng chốt 05/11/2026). Cột NULL = theo file; '' = để trống.
-    `reclaim_status` NULL = 'in_use' (mặc định "Đang sử dụng"). Chỉ là thông tin — không đổi phép tính tải."""
+    `reclaim_status` NULL = 'in_use' (mặc định "Đang sử dụng"). Chỉ là thông tin — không đổi phép tính tải.
+
+    `is_manual` (migration 0004, PLAN §14.12): server VTNet có log nhưng file thống kê thiếu, admin bổ sung ở Đối soát → dòng
+    này đóng vai 1 dòng thống kê (khóa = IP VTNet, đủ cột như file) cho tới khi file thống kê có IP đó."""
 
     __tablename__ = "inventory_override"
     __table_args__ = (
@@ -260,5 +263,14 @@ class InventoryOverride(Base):
     managed_by: Mapped[str | None] = mapped_column(Text)
     cluster: Mapped[str | None] = mapped_column(Text)
     reclaim_status: Mapped[str | None] = mapped_column(String(16))
+    is_manual: Mapped[bool] = mapped_column(Boolean, server_default=false(), default=False)
+    server_class: Mapped[str | None] = mapped_column(Text)
+    config: Mapped[str | None] = mapped_column(Text)
+    cpu: Mapped[str | None] = mapped_column(Text)
+    ram: Mapped[str | None] = mapped_column(Text)
+    disk: Mapped[str | None] = mapped_column(Text)
+    hba: Mapped[str | None] = mapped_column(Text)
+    gpu_spec: Mapped[str | None] = mapped_column(Text)
+    serial: Mapped[str | None] = mapped_column(Text)
     updated_by: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[datetime] = mapped_column(DateTime)

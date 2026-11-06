@@ -883,3 +883,23 @@ Golden **độc lập**: chỉ so với (a) sheet VTNet tự tính, (b) kết qu
    giá trị sửa tay vào đúng ô của sheet "Thống kê chi tiết" (chỉ ô khác file; nền vàng nhạt `FFF2CC` + ghi chú "Sửa tay trên web —
    theo file: …") và thêm cột cuối **"Trạng thái thu hồi"** cho mọi dòng; đầu mối phạm vi own nhận file theo đầu mối đã sửa.
    Công thức sheet GPU QHDC vẫn giữ (test dữ liệu thật). Chưa làm (đề xuất): lọc theo trạng thái thu hồi ở trang Cảnh báo.
+12. **Đối soát: bổ sung server "VTNet có – thống kê thiếu" + "Sửa cặp" đổi được IP thống kê** (người dùng yêu cầu 06/11/2026;
+   chốt: không thêm chỗ sửa ở trang Cảnh báo — sửa đúng trang chuyên trách: đối soát ở Đối soát, thông tin ở Danh mục server)
+   — **[x] làm 06/11/2026**.
+   - Bổ sung: nút **Cập nhật** (admin) ở mục "VTNet có – thống kê thiếu" → hộp thoại đủ cột như file thống kê (Loại server,
+     Cấu hình, CPU, RAM, Disk, HBA, GPU — mặc định theo VTNet, Serial, **Đầu mối (bắt buộc)**, Model, Đầu vào hệ thống, Dịch vụ,
+     Quản lý bằng, Tên cụm, Trạng thái thu hồi; không STT). Người dùng chốt: server đã bổ sung **rời mục đó** và **được tính cho
+     đầu mối và tổng thể như server chuẩn** (ma trận vùng × đầu mối, bộ lọc, phạm vi tài khoản đầu mối, xuất Excel). TB toàn bộ
+     / tổng vùng vốn đã gồm server này → không đổi; chỉ "chưa map" giảm. Danh mục: nhãn "Bổ sung trên web", đếm, sửa như dòng
+     thường (không có "theo file"), nút **Bỏ bổ sung** → quay về mục VTNet-only. Chi tiết server có nhãn.
+   - Lưu: `inventory_override.is_manual` + 8 cột phần cứng (migration **0004**, chỉ thêm cột); `inventory_repo.manual_rows`
+     ghép vào `effective_frame` (khóa = IP VTNet; GPU đọc qua `gpu_core.parse_gpu_spec`). Dòng bổ sung "ngủ" khi file thống kê đã
+     có IP (từ đó theo file, 6 cột sửa tay vẫn giữ — xem trước nhập báo `manual_in_file`) hoặc IP đã là đích 1 liên kết. API
+     `POST /inventory/manual` (409 nếu đã có trong file / đã liên kết, 404 nếu VTNet chưa có số liệu, 422 thiếu đầu mối) ·
+     `DELETE /inventory/manual/{ip}`; nhật ký `inventory_manual_added/removed`. Xuất Excel: thêm dòng bổ sung cuối sheet thống
+     kê chi tiết (ô IP nền vàng + ghi chú) trước khi gpu_core đánh giá → có cột đánh giá như dòng thường.
+   - Sửa cặp: `PATCH /ip-links/{inventory_ip}` nhận `inventory_ip` mới (phải có trong file thống kê hiện hành, chưa có liên kết
+     khác → 409/422); khóa đổi → tạo dòng mới, cặp mới **chưa xác nhận**; nhật ký ghi IP thống kê trước/sau.
+   - Test `test_inventory_manual.py` (12). Kiểm: SQLite 227/12, SQLite + PG 346 → 370/22, Vitest 53, E2E 6/6, thử tay trên server E2E (bổ sung .6 → mục
+     VTNet-only còn 0; đổi IP thống kê 10.207.188.1 → 192.0.2.7; Danh mục hiện "Bổ sung trên web" + "Bỏ bổ sung"). CSDL thật
+     đã migrate 0004 (sao lưu trước: `backups/gpu-util-data-20261106-101456.zip`).

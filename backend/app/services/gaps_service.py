@@ -61,6 +61,7 @@ def gaps(b: Bundle, scope: Scope) -> dict[str, Any]:
             "gpu_count_mismatch": len(mismatch),
             "links": len(links),
             "links_unconfirmed": sum(1 for x in links if not x["pair_confirmed"]),
+            "manual": cat["counts"]["manual"],
         },
         "vtnet_only": vt_only,
         "reclaimed": reclaimed,
@@ -197,7 +198,33 @@ def update_link(s: Session, actor: str, inventory_ip: str, changes: dict[str, An
     link = cur.get(iip)
     if link is None:
         raise ServiceError(404, f"Không có liên kết cho IP thống kê {inventory_ip}.")
-    before = {"vtnet_ip": link.vtnet_ip, "pair_confirmed": link.pair_confirmed, "reason": link.reason}
+    before = {
+        "inventory_ip": link.inventory_ip, "vtnet_ip": link.vtnet_ip, "pair_confirmed": link.pair_confirmed,
+        "reason": link.reason,
+    }  # fmt: skip
+    # Đổi IP thống kê của cặp (PLAN §14.12, người dùng chốt 06/11/2026): IP mới phải có trong file thống kê hiện hành và chưa
+    # có liên kết; khóa chính đổi → tạo dòng mới, bỏ dòng cũ; cặp mới phải xác nhận lại.
+    new_iip = changes.get("inventory_ip")
+    if new_iip is not None and g.norm_ip(new_iip) != iip:
+        new_iip = _norm_ip(new_iip, "IP thống kê")
+        if new_iip in cur:
+            raise ServiceError(
+                409, f"IP thống kê {new_iip} đã có liên kết (→ {cur[new_iip].vtnet_ip}) — sửa liên kết đó."
+            )
+        if inventory_repo.current_row(s, new_iip) is None:
+            raise ServiceError(422, f"IP thống kê {new_iip} không có trong file thống kê hiện hành.")
+        vip_after = _norm_ip(changes["vtnet_ip"], "IP VTNet") if changes.get("vtnet_ip") else link.vtnet_ip
+        pairs = [(x.inventory_ip, x.vtnet_ip) for x in cur.values() if x.inventory_ip != iip] + [(new_iip, vip_after)]
+        _check(s, pairs)
+        moved = IpLink(
+            inventory_ip=new_iip, vtnet_ip=vip_after, pair_confirmed=False, reason=link.reason,
+            created_by=link.created_by, created_at=link.created_at,
+        )  # fmt: skip
+        s.delete(link)
+        s.flush()  # giải phóng ràng buộc unique vtnet_ip trước khi thêm dòng mới
+        s.add(moved)
+        link, iip = moved, new_iip
+        changes = {k: v for k, v in changes.items() if k not in ("inventory_ip", "vtnet_ip")}
     if "vtnet_ip" in changes and changes["vtnet_ip"] is not None:
         vip = _norm_ip(changes["vtnet_ip"], "IP VTNet")
         if vip != link.vtnet_ip:
@@ -212,7 +239,10 @@ def update_link(s: Session, actor: str, inventory_ip: str, changes: dict[str, An
             link.pair_confirmed, link.confirmed_by, link.confirmed_at = True, actor, utcnow()
         elif not confirmed:
             link.pair_confirmed, link.confirmed_by, link.confirmed_at = False, None, None
-    after = {"vtnet_ip": link.vtnet_ip, "pair_confirmed": link.pair_confirmed, "reason": link.reason}
+    after = {
+        "inventory_ip": link.inventory_ip, "vtnet_ip": link.vtnet_ip, "pair_confirmed": link.pair_confirmed,
+        "reason": link.reason,
+    }  # fmt: skip
     action = "link_confirmed" if after["pair_confirmed"] and not before["pair_confirmed"] else "link_updated"
     audit(s, actor, action, iip, before=before, after=after)
     s.commit()

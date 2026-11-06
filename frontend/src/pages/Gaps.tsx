@@ -7,6 +7,7 @@ import { errorMessage } from '../api/client'
 import { useGaps, useIpLinks, useLinkActions } from '../api/hooks'
 import type { InventoryGapRow, IpLinkRow, MismatchRow, Suggestion, VtnetOnlyRow } from '../api/types'
 import { useAuth } from '../auth/session'
+import { InventoryManualModal } from '../components/InventoryManualModal'
 import { ErrorState, Loading } from '../components/States'
 import { ZoneTag } from '../components/Tags'
 import { fmtDateTimeUtc, fmtPct } from '../lib/format'
@@ -42,7 +43,10 @@ function LinkModal({ open, editing, initial, onClose }: {
     setError(null)
     try {
       if (editing) {
-        await act.update.mutateAsync({ ip: editing.inventory_ip, body: { vtnet_ip: v.vtnet_ip, reason: v.reason ?? null } })
+        // đổi được cả IP thống kê (PLAN §14.12) — chỉ gửi khi khác, cặp mới phải xác nhận lại
+        const inv = v.inventory_ip.trim()
+        const body = { vtnet_ip: v.vtnet_ip, reason: v.reason ?? null, ...(inv !== editing.inventory_ip ? { inventory_ip: inv } : {}) }
+        await act.update.mutateAsync({ ip: editing.inventory_ip, body })
         message.success(t.saved)
       } else {
         await act.create.mutateAsync({ inventory_ip: v.inventory_ip, vtnet_ip: v.vtnet_ip, reason: v.reason ?? null })
@@ -66,7 +70,9 @@ function LinkModal({ open, editing, initial, onClose }: {
       afterClose={() => setError(null)}
     >
       {error && <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={error} />}
-      {editing && <Alert type="info" showIcon style={{ marginBottom: 12 }} message={t.unconfirmed} description={vi.gaps.linksHint} />}
+      {editing && (
+        <Alert type="info" showIcon style={{ marginBottom: 12 }} message={t.editPairHint} description={vi.gaps.linksHint} />
+      )}
       <Form<LinkForm>
         form={form}
         layout="vertical"
@@ -80,7 +86,7 @@ function LinkModal({ open, editing, initial, onClose }: {
         }
       >
         <Form.Item name="inventory_ip" label={t.inventoryIp} rules={[{ required: true, message: t.inventoryIp }]}>
-          <Input disabled={Boolean(editing)} placeholder="10.207.188.1" />
+          <Input placeholder="10.207.188.1" />
         </Form.Item>
         <Form.Item name="vtnet_ip" label={t.vtnetIp} rules={[{ required: true, message: t.vtnetIp }]}>
           <Input placeholder="10.205.36.51" />
@@ -218,6 +224,8 @@ export default function Gaps() {
   const [f] = useFilters()
   const q = useGaps(f)
   const [tab, setTab] = usePageParam('tab')
+  const admin = useAuth().role === 'admin'
+  const [manual, setManual] = useState<VtnetOnlyRow | null>(null)
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   if (!q.data) return <Loading />
   const g = q.data
@@ -230,6 +238,11 @@ export default function Gaps() {
     { title: vi.kpi.gpuAvg, dataIndex: 'gpu_avg', render: (v: number | null) => fmtPct(v) },
     { title: vi.kpi.memAvg, dataIndex: 'mem_avg', render: (v: number | null) => fmtPct(v) },
     { title: vi.server.days, dataIndex: 'days' },
+    ...(admin
+      ? [{ title: vi.users.actions, key: 'actions', render: (_: unknown, r: VtnetOnlyRow) => (
+          <Button size="small" icon={<EditOutlined />} onClick={() => setManual(r)}>{t.update}</Button>
+        ) }]
+      : []),
   ]
   const invCols: ColumnsType<InventoryGapRow> = [
     { title: t.inventoryIp, dataIndex: 'inventory_ip', render: (ip: string) => <ServerLink ip={ip} /> },
@@ -259,6 +272,7 @@ export default function Gaps() {
       <Typography.Title level={3} style={{ margin: 0 }}>
         {t.title}
       </Typography.Title>
+      <InventoryManualModal row={manual} onClose={() => setManual(null)} />
       <Card>
         <Tabs
           activeKey={tab ?? 'vtnet'}
@@ -269,7 +283,13 @@ export default function Gaps() {
               label: label(t.vtnetOnly, c.vtnet_only),
               children: (
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Alert type="info" showIcon message={t.vtnetOnlyHint} />
+                  <Alert
+                    type="info"
+                    showIcon
+                    message={t.vtnetOnlyHint}
+                    description={admin ? t.vtnetOnlyAdminHint : undefined}
+                  />
+                  {c.manual > 0 && <Tag icon={<EditOutlined />}>{t.manualCount(c.manual)}</Tag>}
                   <Table<VtnetOnlyRow> size="small" rowKey="ip" columns={vtCols} dataSource={g.vtnet_only} pagination={false} />
                 </Space>
               ),
